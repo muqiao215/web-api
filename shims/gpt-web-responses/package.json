@@ -1,0 +1,8 @@
+{
+  "name": "@web-capability-api/gpt-web-responses",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "echo migrate /root/.ductor/workspace/provider_shims/gpt_web_responses_shim.mjs here later"
+  }
+}

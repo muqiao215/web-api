@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.web-capability-api/schemas/runtime-health.schema.json",
+  "title": "RuntimeHealth",
+  "type": "object",
+  "required": ["status"],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["ok", "degraded", "blocked", "error"]
+    },
+    "service_alive": { "type": "boolean" },
+    "browser_connected": { "type": "boolean" },
+    "blocked_by": {
+      "type": "string",
+      "enum": ["none", "browser_session", "login_required", "rate_limit", "upstream_unavailable", "auth", "unknown"]
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": { "type": "boolean" }
+    },
+    "details": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

@@ -1,0 +1,16 @@
+[Unit]
+Description=GenAPI control plane - sub2api
+After=network-online.target postgresql.service redis-server.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/root/.ductor/workspace/web_capability_api/vendor/sub2api-deploy
+EnvironmentFile=/root/.ductor/workspace/web_capability_api/ops/env/providers/sub2api.env
+ExecStart=/root/.ductor/workspace/web_capability_api/vendor/sub2api-deploy/bin/sub2api
+Restart=on-failure
+RestartSec=3
+LimitNOFILE=100000
+
+[Install]
+WantedBy=multi-user.target

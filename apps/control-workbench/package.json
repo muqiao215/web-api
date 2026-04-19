@@ -1,0 +1,8 @@
+{
+  "name": "@web-capability-api/control-workbench",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "echo control-workbench placeholder"
+  }
+}

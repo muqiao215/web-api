@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.web-capability-api/schemas/provider-capability.schema.json",
+  "title": "ProviderCapability",
+  "type": "object",
+  "required": ["id", "type", "capabilities", "models"],
+  "properties": {
+    "id": { "type": "string" },
+    "type": {
+      "type": "string",
+      "enum": ["browser-session", "local-api", "external-api", "shim", "consumer"]
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": { "type": "boolean" }
+    },
+    "models": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "upstream": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "notes": { "type": "string" }
+  },
+  "additionalProperties": true
+}

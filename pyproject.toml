@@ -1,0 +1,11 @@
+[project]
+name = "web-capability-api-workspace"
+version = "0.1.0"
+description = "Workspace metadata for the local Web Capability API monorepo."
+requires-python = ">=3.12"
+dependencies = []
+
+[tool.uv.workspace]
+members = [
+  "packages/ops_doctor",
+]

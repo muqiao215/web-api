@@ -1,0 +1,18 @@
+{
+  "name": "web-capability-api",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/control-workbench",
+    "providers/gpt-web-api",
+    "providers/canvas-to-api",
+    "providers/qwen2api/frontend",
+    "shims/gpt-web-responses",
+    "consumers/showcase-web"
+  ],
+  "scripts": {
+    "doctor": "uv run --project packages/ops_doctor wcapi-doctor",
+    "doctor:strict": "uv run --project packages/ops_doctor wcapi-doctor --strict",
+    "check:layout": "test -f README.md && test -d providers && test -d shims && test -d packages && test -d ops"
+  }
+}

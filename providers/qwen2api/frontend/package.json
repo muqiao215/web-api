@@ -1,0 +1,8 @@
+{
+  "name": "@web-capability-api/qwen2api-frontend",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "echo qwen2api frontend placeholder"
+  }
+}

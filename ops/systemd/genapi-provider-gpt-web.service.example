@@ -1,0 +1,17 @@
+[Unit]
+Description=GenAPI provider - ChatGPT web browser API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/root/.ductor/workspace/web_capability_api/providers/gpt-web-api
+EnvironmentFile=-/root/.ductor/workspace/web_capability_api/ops/env/common.env
+EnvironmentFile=-/root/.ductor/workspace/web_capability_api/ops/env/providers/gpt-web.env
+ExecStart=/usr/local/bin/bun run start
+Restart=on-failure
+RestartSec=3
+LimitNOFILE=100000
+
+[Install]
+WantedBy=multi-user.target

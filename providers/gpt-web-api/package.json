@@ -1,0 +1,8 @@
+{
+  "name": "@web-capability-api/gpt-web-api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "echo migrate /root/.ductor/workspace/gpt_web_api here later"
+  }
+}

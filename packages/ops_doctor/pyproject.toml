@@ -1,0 +1,13 @@
+[project]
+name = "web-capability-api-ops-doctor"
+version = "0.1.0"
+description = "Local doctor checks for the Web Capability API runtime."
+requires-python = ">=3.12"
+dependencies = []
+
+[project.scripts]
+wcapi-doctor = "web_capability_api_ops_doctor.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

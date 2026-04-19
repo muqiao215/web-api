@@ -1,0 +1,33 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+dist/
+build/
+*.egg-info/
+
+# JavaScript / TypeScript
+node_modules/
+.bun/
+.vite/
+.next/
+coverage/
+
+# Runtime state and secrets
+.env
+*.env
+!.env.example
+!*.env.example
+data/
+state/
+generated/
+uploads/
+logs/
+*.log
+
+# Local evidence
+artifacts/
+tmp/
+*.local.*

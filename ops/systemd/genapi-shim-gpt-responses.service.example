@@ -1,0 +1,17 @@
+[Unit]
+Description=GenAPI shim - GPT web Responses adapter
+After=network-online.target genapi-provider-gpt-web.service
+Wants=network-online.target genapi-provider-gpt-web.service
+
+[Service]
+Type=simple
+WorkingDirectory=/root/.ductor/workspace/web_capability_api/shims/gpt-web-responses
+EnvironmentFile=-/root/.ductor/workspace/web_capability_api/ops/env/common.env
+EnvironmentFile=-/root/.ductor/workspace/web_capability_api/ops/env/providers/gpt-web.env
+ExecStart=/usr/local/bin/bun run start
+Restart=on-failure
+RestartSec=3
+LimitNOFILE=100000
+
+[Install]
+WantedBy=multi-user.target

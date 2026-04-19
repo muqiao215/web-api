@@ -1,0 +1,8 @@
+{
+  "name": "@web-capability-api/canvas-to-api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "echo migrate or wrap /root/.ductor/workspace/CanvasToAPI here later"
+  }
+}

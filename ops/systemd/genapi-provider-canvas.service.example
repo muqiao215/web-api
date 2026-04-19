@@ -1,0 +1,17 @@
+[Unit]
+Description=GenAPI provider - Canvas/Gemini bridge
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/root/.ductor/workspace/web_capability_api/providers/canvas-to-api
+EnvironmentFile=-/root/.ductor/.env
+EnvironmentFile=-/root/.ductor/workspace/web_capability_api/ops/env/common.env
+EnvironmentFile=-/root/.ductor/workspace/web_capability_api/ops/env/providers/canvas.env
+ExecStart=/usr/local/bin/bun run start
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

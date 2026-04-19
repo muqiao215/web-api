@@ -1,0 +1,16 @@
+[Unit]
+Description=GenAPI provider - ds-free-api
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/root/.ductor/workspace/web_capability_api/providers/ds-free-api
+EnvironmentFile=-/root/.ductor/workspace/web_capability_api/ops/env/common.env
+EnvironmentFile=-/root/.ductor/workspace/web_capability_api/ops/env/providers/ds-free.env
+ExecStart=/root/.ductor/workspace/web_capability_api/providers/ds-free-api/bin/ds-free-api -c /root/.ductor/workspace/web_capability_api/providers/ds-free-api/config.toml
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

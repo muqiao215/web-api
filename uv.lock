@@ -1,0 +1,19 @@
+version = 1
+revision = 3
+requires-python = ">=3.12"
+
+[manifest]
+members = [
+    "web-capability-api-ops-doctor",
+    "web-capability-api-workspace",
+]
+
+[[package]]
+name = "web-capability-api-ops-doctor"
+version = "0.1.0"
+source = { editable = "packages/ops_doctor" }
+
+[[package]]
+name = "web-capability-api-workspace"
+version = "0.1.0"
+source = { virtual = "." }
