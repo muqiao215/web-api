@@ -7,6 +7,8 @@ Recommended naming:
 - `genapi-control-sub2api.service`
 - `genapi-provider-gpt-web.service`
 - `genapi-shim-gpt-responses.service`
+- `genapi-shim-chat-responses.service`
+- `genapi-shim-ds-responses.service`
 - `genapi-provider-canvas.service`
 - `genapi-provider-ds-free.service`
 

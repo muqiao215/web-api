@@ -1,0 +1,10 @@
+{
+  "name": "@web-capability-api/chat-responses",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "find . -name '*.mjs' -not -path './node_modules/*' -print0 | xargs -0 -n1 node --check",
+    "start": "node chat_responses_shim.mjs",
+    "test": "node --test test/*.test.mjs"
+  }
+}

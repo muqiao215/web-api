@@ -12,3 +12,4 @@ Rules:
 Current migrated shim:
 
 - `gpt-web-responses/`
+- `chat-responses/`

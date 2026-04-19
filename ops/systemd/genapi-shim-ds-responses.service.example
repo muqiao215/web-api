@@ -1,0 +1,16 @@
+[Unit]
+Description=GenAPI DeepSeek responses shim
+After=network-online.target genapi-provider-ds-free.service
+Wants=network-online.target genapi-provider-ds-free.service
+
+[Service]
+Type=simple
+WorkingDirectory=/root/.ductor/workspace/web_capability_api/shims/chat-responses
+EnvironmentFile=-/root/.ductor/workspace/web_capability_api/ops/env/providers/ds-free.local.env
+ExecStart=/usr/local/bin/node /root/.ductor/workspace/web_capability_api/shims/chat-responses/chat_responses_shim.mjs
+Restart=on-failure
+RestartSec=3
+LimitNOFILE=100000
+
+[Install]
+WantedBy=multi-user.target

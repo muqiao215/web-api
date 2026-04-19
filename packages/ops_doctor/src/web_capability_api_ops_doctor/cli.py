@@ -15,6 +15,7 @@ HTTP_CHECKS = [
     ("sub2api", "http://127.0.0.1:18080/health"),
     ("gpt-web-api", "http://127.0.0.1:4242/health"),
     ("gpt-web-responses", "http://127.0.0.1:4252/health"),
+    ("ds-free-responses", "http://127.0.0.1:5327/health"),
     ("canvas-to-api", "http://127.0.0.1:7861/health"),
 ]
 
@@ -22,12 +23,14 @@ TCP_CHECKS = [
     ("chrome-cdp", "127.0.0.1", 9222),
     ("novnc", "127.0.0.1", 6080),
     ("ds-free-api", "127.0.0.1", 5317),
+    ("ds-free-responses", "127.0.0.1", 5327),
 ]
 
 SYSTEMD_UNITS = [
     "sub2api-local.service",
     "gpt-web-api.service",
     "gpt-web-responses-shim.service",
+    "ds-free-responses-shim.service",
     "canvas-to-api.service",
     "ds-free-api-b492dedd.service",
 ]

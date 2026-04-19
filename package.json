@@ -7,6 +7,7 @@
     "providers/gpt-web-api",
     "providers/canvas-to-api",
     "providers/qwen2api/frontend",
+    "shims/chat-responses",
     "shims/gpt-web-responses",
     "consumers/showcase-web"
   ],

@@ -31,6 +31,7 @@ Confirmed live services on this host:
 | API management plane | `sub2api-local.service` | `127.0.0.1:18080` | active, `/health` ok |
 | GPT browser worker | `gpt-web-api.service` | `127.0.0.1:4242` | active, `/health` ok |
 | GPT Responses shim | `gpt-web-responses-shim.service` | `127.0.0.1:4252` | active, `/health` ok |
+| DeepSeek Responses shim | `ds-free-responses-shim.service` | `127.0.0.1:5327` | target shape for `sub2api`; upstream still needs content smoke |
 | Gemini/Canvas worker | `canvas-to-api.service` | `127.0.0.1:7861` | service active, `browserConnected=false` can still block image generation |
 | DeepSeek worker | `ds-free-api-b492dedd.service` | `127.0.0.1:5317` | active, auth required |
 | Browser runtime | Chrome CDP | `127.0.0.1:9222` | listening |
@@ -38,18 +39,26 @@ Confirmed live services on this host:
 
 This repository starts as a scaffold. Do not migrate running services blindly; migrate one layer at a time and rewire systemd paths only after smoke checks pass.
 
+Provider health is tracked in [ops/provider-status.md](/root/.ductor/workspace/web_capability_api/ops/provider-status.md). The important distinction is:
+
+- `API surface aligned` means the local endpoint shape matches the unified contract.
+- `Routed` means the provider is registered in `sub2api`.
+- `Healthy` means content generation has passed direct and `sub2api` smokes.
+
 ## Migration Status
 
 Already migrated into this repository:
 
 - `providers/gpt-web-api/`
 - `shims/gpt-web-responses/`
+- `shims/chat-responses/`
 - `packages/prompt-factory/`
 
 Already cut over to run from this repository:
 
 - `gpt-web-api.service`
 - `gpt-web-responses-shim.service`
+- `ds-free-responses-shim.service`
 
 Still running from legacy or external paths:
 
@@ -93,9 +102,10 @@ Note: this host currently has `uv` available. If `bun` is missing on a target ho
 1. Keep all existing services running from their current directories.
 2. Use `packages/ops_doctor` to establish a baseline.
 3. GPT API, GPT shim, and prompt factory have already been copied and verified in this repo; GPT runtime cutover is complete.
-4. Keep `sub2api` under `vendor/` and deploy wrappers under `ops/`.
-5. Treat `CanvasToAPI` as a browser-session provider; fix login/profile operations before calling it stable.
-6. Move consumers last.
+4. Use `shims/chat-responses/` for workers that only expose chat completions.
+5. Keep `sub2api` under `vendor/` and deploy wrappers under `ops/`.
+6. Treat `CanvasToAPI` as a browser-session provider; fix login/profile operations before calling it stable.
+7. Move consumers last.
 
 ## Verification
 
