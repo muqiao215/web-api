@@ -25,6 +25,7 @@ Gemini Canvas:
 - `GET http://127.0.0.1:7861/health` returned `status=ok`
 - the same response reported `browserConnected=false`
 - conclusion: API surface exists, but generation is blocked by browser profile/session/login state
+- persistent login slots are prepared as `gemini-canvas-browser@a.service` and `gemini-canvas-browser@b.service`, backed by isolated Chrome profiles under `/root/.ductor/state/browser-profiles/`
 
 DeepSeek:
 

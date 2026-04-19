@@ -16,3 +16,4 @@ Operational note:
 
 - GPT runtime cutover was completed on 2026-04-19.
 - Before/after unit snapshots are stored in [backups/20260419-gpt-cutover](/root/.ductor/workspace/web_capability_api/ops/systemd/backups/20260419-gpt-cutover).
+- Gemini Canvas persistent browser identity slots are live on this host as `gemini-canvas-browser@a.service` and `gemini-canvas-browser@b.service`, with a dedicated `gemini-canvas-xvfb.service`/`gemini-canvas-novnc.service` handoff display. Login state lives outside git under `/root/.ductor/state/browser-profiles/`.
