@@ -6,6 +6,7 @@ from typing import Any
 
 from prompt_factory.adapters import (
     compose_toloka_prompts,
+    load_awesome_gpt_image_2_prompts,
     load_prompt_pack_prompts,
     load_runtime_bridge_prompts,
     load_stable_diffusion_templates,
@@ -50,7 +51,14 @@ def build_prompt_pool(
     policy: PromptPolicy | None = None,
 ) -> dict[str, Any]:
     policy = policy or PromptPolicy()
-    include = include_sources or ["youmind", "toloka", "stable_diffusion", "atomic_composer"]
+    include = include_sources or [
+        "youmind",
+        "toloka",
+        "stable_diffusion",
+        "prompt_pack",
+        "awesome_gpt_image_2",
+        "atomic_composer",
+    ]
     records: list[PromptRecord] = []
     errors: list[str] = []
     source_meta: list[dict[str, str]] = []
@@ -92,6 +100,15 @@ def build_prompt_pool(
             source_meta.append({"name": "prompt_pack", "path": str(path), "count": str(len(batch))})
         except Exception as exc:  # noqa: BLE001
             errors.append(f"prompt_pack: {exc}")
+
+    if "awesome_gpt_image_2" in include and source_paths.get("awesome_gpt_image_2"):
+        path = source_paths["awesome_gpt_image_2"]
+        try:
+            batch = load_awesome_gpt_image_2_prompts(path)
+            records.extend(batch)
+            source_meta.append({"name": "awesome_gpt_image_2", "path": str(path), "count": str(len(batch))})
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"awesome_gpt_image_2: {exc}")
 
     if "atomic_composer" in include and toloka_rows:
         batch = compose_toloka_prompts(toloka_rows, toloka_keywords, compose_keyword_limit)

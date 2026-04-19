@@ -137,29 +137,62 @@ class PromptFactoryBuildTests(unittest.TestCase):
                     "Below is a list of emotions the colors might invoke when used in art.": "luxury, intimate",
                 }
             )
-        return {"youmind": youmind, "toloka": toloka, "stable_diffusion": sd, "prompt_pack": prompt_pack}
+        awesome = root / "awesome-gpt-image-2-prompts"
+        awesome.mkdir(parents=True, exist_ok=True)
+        (awesome / "README.md").write_text(
+            "## Portrait & Photography Cases\n\n"
+            "### Case 1: [Mirror Portrait](https://example.test/portrait) (by [@portrait](https://example.test/a))\n\n"
+            "**Prompt:**\n\n"
+            "```\n"
+            "A beautiful woman portrait in studio light with glossy skin and fashion hair.\n"
+            "```\n\n"
+            "## Poster & Illustration Cases\n\n"
+            "### Case 2: [Retro City Poster](https://example.test/poster) (by [@poster](https://example.test/b))\n\n"
+            "**Prompt:**\n\n"
+            "```\n"
+            "Create a cinematic retro-futurist city poster with layered typography, neon haze, intricate linework, "
+            "editorial composition, atmospheric lighting, and richly detailed architecture.\n"
+            "```\n",
+            encoding="utf-8",
+        )
+        return {
+            "youmind": youmind,
+            "toloka": toloka,
+            "stable_diffusion": sd,
+            "prompt_pack": prompt_pack,
+            "awesome_gpt_image_2": awesome,
+        }
 
     def test_build_pool_filters_and_composes_records(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             paths = self.make_sources(Path(tmp))
             pool = build_prompt_pool(
                 paths,
-                include_sources=["youmind", "toloka", "stable_diffusion", "prompt_pack", "atomic_composer"],
+                include_sources=[
+                    "youmind",
+                    "toloka",
+                    "stable_diffusion",
+                    "prompt_pack",
+                    "awesome_gpt_image_2",
+                    "atomic_composer",
+                ],
                 compose_keyword_limit=2,
             )
 
         self.assertEqual(pool["schema"], "prompt-factory-pool.v1")
-        self.assertEqual(pool["prompt_count"], 6)
+        self.assertEqual(pool["prompt_count"], 7)
         self.assertEqual(pool["source_counts"]["youmind-ai-image-prompts-skill"], 1)
         self.assertEqual(pool["source_counts"]["toloka-bestprompts"], 1)
         self.assertEqual(pool["source_counts"]["stable-diffusion-prompt-templates"], 1)
         self.assertEqual(pool["source_counts"]["hoppycat-prompt-pack"], 1)
+        self.assertEqual(pool["source_counts"]["awesome-gpt-image-2-prompts"], 1)
         self.assertEqual(pool["source_counts"]["atomic-composer"], 2)
         self.assertTrue(all(not item["quality"]["human_related"] for item in pool["prompts"]))
         self.assertTrue(all(not item["quality"]["requires_reference"] for item in pool["prompts"]))
         self.assertTrue(any(item["source_kind"] == "composed" for item in pool["prompts"]))
         self.assertGreater(pool["prompts"][0]["selection_score"], 0)
         self.assertTrue(any(item["source"] == "hoppycat-prompt-pack" for item in pool["prompts"]))
+        self.assertTrue(any(item["source"] == "awesome-gpt-image-2-prompts" for item in pool["prompts"]))
 
     def test_provider_exports_are_runtime_compatible(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

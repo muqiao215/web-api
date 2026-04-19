@@ -24,11 +24,12 @@ DEFAULT_SOURCE_PATHS = {
     "toloka": WORKSPACE / "BestPrompts.tmp",
     "stable_diffusion": WORKSPACE / "stable-diffusion-prompt-templates.ASMlaX",
     "prompt_pack": WORKSPACE / "prompt-pack.tmp",
+    "awesome_gpt_image_2": WORKSPACE / "awesome-gpt-image-2-prompts",
     "runtime_bridge": WORKSPACE / "telegram_gpt_image_bot" / "state" / "prompt_pool.json",
 }
 
 PROFILE_SOURCES = {
-    "local_repos": ["youmind", "toloka", "stable_diffusion", "prompt_pack", "atomic_composer"],
+    "local_repos": ["youmind", "toloka", "stable_diffusion", "prompt_pack", "awesome_gpt_image_2", "atomic_composer"],
     "runtime_bridge": ["runtime_bridge"],
 }
 
@@ -105,6 +106,7 @@ def main(argv: list[str] | None = None) -> int:
             "toloka": WORKSPACE / "BestPrompts.tmp",
             "stable_diffusion": WORKSPACE / "stable-diffusion-prompt-templates.ASMlaX",
             "prompt_pack": WORKSPACE / "prompt-pack.tmp",
+            "awesome_gpt_image_2": WORKSPACE / "awesome-gpt-image-2-prompts",
             "runtime_bridge": WORKSPACE / "telegram_gpt_image_bot" / "state" / "prompt_pool.json",
         }
     )

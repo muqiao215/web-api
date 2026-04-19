@@ -6,7 +6,7 @@
 
 - `local_repos`
   从本地源仓库重建统一提示词池：
-  `ai-image-prompts-skill.J5v2Vt`、`BestPrompts.tmp`、`stable-diffusion-prompt-templates.ASMlaX`、`prompt-pack.tmp`
+  `ai-image-prompts-skill.J5v2Vt`、`BestPrompts.tmp`、`stable-diffusion-prompt-templates.ASMlaX`、`prompt-pack.tmp`、`awesome-gpt-image-2-prompts`
 - `runtime_bridge`
   直接桥接当前已验证在跑的
   `/root/.ductor/workspace/telegram_gpt_image_bot/state/prompt_pool.json`
@@ -71,6 +71,12 @@ uv run --project /root/.ductor/workspace/web_capability_api/packages/prompt-fact
 - 如果 repo 只有 README，则从 README 里的 Google Sheet 链接推导 CSV 地址再抓取
 
 这样 `hoppycat-prompt-pack` 不再只能通过 `runtime_bridge` 带出。
+
+`awesome-gpt-image-2-prompts` 也已接入本地 source adapter：
+
+- 读取默认英文 `README.md`
+- 按 `## section -> ### Case -> Prompt code block` 抽取 case prompt
+- 默认仍遵守工程过滤策略，所以人物/人像 prompt 不会进入默认 GPT 池
 
 ## 设计取舍
 

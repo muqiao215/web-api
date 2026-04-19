@@ -7,6 +7,7 @@
   - `BestPrompts.tmp`
   - `stable-diffusion-prompt-templates.ASMlaX`
   - `prompt-pack.tmp`
+  - `awesome-gpt-image-2-prompts`
 - 运行时桥接源
   - `telegram_gpt_image_bot/state/prompt_pool.json`
 
@@ -16,3 +17,9 @@
 - repo 内若只有 README，则从 README 中的 Google Sheet 链接推导 CSV 地址
 
 这保证 `local_repos` 可以独立产出 `hoppycat-prompt-pack`。
+
+`awesome-gpt-image-2-prompts` 当前走 Markdown adapter：
+
+- 只读取默认英文 `README.md`
+- 以 section/case/prompt code block 为抽取边界
+- 保留 case 链接与作者链接到 `metadata`
