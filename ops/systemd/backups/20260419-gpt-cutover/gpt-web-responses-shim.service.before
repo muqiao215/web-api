@@ -1,0 +1,19 @@
+[Unit]
+Description=Local Responses shim for gpt_web_api
+After=network-online.target gpt-web-api.service
+Wants=network-online.target gpt-web-api.service
+
+[Service]
+Type=simple
+WorkingDirectory=/root/.ductor/workspace/provider_shims
+Environment=GPT_WEB_RESPONSES_SHIM_HOST=127.0.0.1
+Environment=GPT_WEB_RESPONSES_SHIM_PORT=4252
+Environment=GPT_WEB_CHAT_UPSTREAM=http://127.0.0.1:4242
+Environment=GPT_WEB_RESPONSES_DEFAULT_MODEL=chatgpt-web
+ExecStart=/usr/local/bin/node /root/.ductor/workspace/provider_shims/gpt_web_responses_shim.mjs
+Restart=on-failure
+RestartSec=3
+LimitNOFILE=100000
+
+[Install]
+WantedBy=multi-user.target

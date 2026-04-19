@@ -51,17 +51,20 @@ cd /root/.ductor/workspace/web_capability_api/providers/gpt-web-api
 node server.mjs
 ```
 
-Current live systemd run still points at the old source tree and should remain there until migration cutover:
+Current live systemd unit now points at this tree:
 
 ```bash
-systemd-run --unit=gpt-web-api.service \
-  --description='local ChatGPT web API via browser session' \
-  --property=WorkingDirectory=/root/.ductor/workspace/gpt_web_api \
-  --setenv=GPT_WEB_API_HOST=127.0.0.1 \
-  --setenv=GPT_WEB_API_PORT=4242 \
-  --setenv=GPT_WEB_API_CDP=http://127.0.0.1:9222 \
-  /usr/local/bin/node /root/.ductor/workspace/gpt_web_api/server.mjs
+systemctl cat gpt-web-api.service
 ```
+
+Current active values:
+
+- `WorkingDirectory=/root/.ductor/workspace/web_capability_api/providers/gpt-web-api`
+- `ExecStart=/usr/local/bin/node /root/.ductor/workspace/web_capability_api/providers/gpt-web-api/server.mjs`
+
+Rollback/cutover snapshots are stored under:
+
+- [GPT cutover backups](/root/.ductor/workspace/web_capability_api/ops/systemd/backups/20260419-gpt-cutover)
 
 Run tests:
 

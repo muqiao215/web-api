@@ -46,13 +46,18 @@ Already migrated into this repository:
 - `shims/gpt-web-responses/`
 - `packages/prompt-factory/`
 
-Still running from legacy source paths for production stability:
+Already cut over to run from this repository:
 
 - `gpt-web-api.service`
 - `gpt-web-responses-shim.service`
-- all current `sub2api` and Canvas units
 
-That means the code has moved, but systemd cutover has not happened yet.
+Still running from legacy or external paths:
+
+- all current `sub2api` units
+- Canvas units
+- other provider and consumer services
+
+That means GPT code migration and GPT runtime cutover are both complete, while the rest of the stack is still staged.
 
 ## Layout
 
@@ -87,7 +92,7 @@ Note: this host currently has `uv` available. If `bun` is missing on a target ho
 
 1. Keep all existing services running from their current directories.
 2. Use `packages/ops_doctor` to establish a baseline.
-3. GPT API, GPT shim, and prompt factory have already been copied and verified in this repo; next is runtime cutover.
+3. GPT API, GPT shim, and prompt factory have already been copied and verified in this repo; GPT runtime cutover is complete.
 4. Keep `sub2api` under `vendor/` and deploy wrappers under `ops/`.
 5. Treat `CanvasToAPI` as a browser-session provider; fix login/profile operations before calling it stable.
 6. Move consumers last.
