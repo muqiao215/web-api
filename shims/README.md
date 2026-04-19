@@ -8,3 +8,7 @@ Rules:
 - Expose `/health`.
 - Report upstream URL and default model without secrets.
 - Do not implement business logic that belongs in a provider.
+
+Current migrated shim:
+
+- `gpt-web-responses/`

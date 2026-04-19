@@ -1,8 +1,14 @@
 {
-  "name": "@web-capability-api/gpt-web-api",
+  "name": "gpt-web-api",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "check": "echo migrate /root/.ductor/workspace/gpt_web_api here later"
+    "check": "find . -name '*.mjs' -not -path './node_modules/*' -print0 | xargs -0 -n1 node --check",
+    "test": "node --test test/*.test.mjs",
+    "start": "node server.mjs"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }

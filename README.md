@@ -38,6 +38,22 @@ Confirmed live services on this host:
 
 This repository starts as a scaffold. Do not migrate running services blindly; migrate one layer at a time and rewire systemd paths only after smoke checks pass.
 
+## Migration Status
+
+Already migrated into this repository:
+
+- `providers/gpt-web-api/`
+- `shims/gpt-web-responses/`
+- `packages/prompt-factory/`
+
+Still running from legacy source paths for production stability:
+
+- `gpt-web-api.service`
+- `gpt-web-responses-shim.service`
+- all current `sub2api` and Canvas units
+
+That means the code has moved, but systemd cutover has not happened yet.
+
 ## Layout
 
 ```text
@@ -71,7 +87,7 @@ Note: this host currently has `uv` available. If `bun` is missing on a target ho
 
 1. Keep all existing services running from their current directories.
 2. Use `packages/ops_doctor` to establish a baseline.
-3. Move low-risk first-party code first: GPT API, GPT shim, prompt factory.
+3. GPT API, GPT shim, and prompt factory have already been copied and verified in this repo; next is runtime cutover.
 4. Keep `sub2api` under `vendor/` and deploy wrappers under `ops/`.
 5. Treat `CanvasToAPI` as a browser-session provider; fix login/profile operations before calling it stable.
 6. Move consumers last.

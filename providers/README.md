@@ -14,7 +14,7 @@ Initial mapping:
 
 | Existing project | Target | Strategy |
 | --- | --- | --- |
-| `/root/.ductor/workspace/gpt_web_api` | `providers/gpt-web-api/` | first-party move later |
+| `/root/.ductor/workspace/gpt_web_api` | `providers/gpt-web-api/` | migrated source; runtime cutover later |
 | `/root/.ductor/workspace/CanvasToAPI` | `providers/canvas-to-api/` | wrap/adopt carefully; browser session is critical |
 | `/root/.ductor/workspace/qwen2API` | `providers/qwen2api/` | candidate after account pool is usable |
 | `/root/.ductor/workspace/ds-free-api` | `providers/ds-free-api/` | wrapper around Rust binary/config first |

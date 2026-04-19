@@ -4,6 +4,7 @@ Shared packages belong here.
 
 - `ops_doctor/`: Python `uv` CLI for local service health checks.
 - `provider_contracts/`: shared schemas for capability and runtime health.
+- `prompt-factory/`: migrated prompt source/build package
 
 Future candidates:
 

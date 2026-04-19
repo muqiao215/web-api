@@ -1,0 +1,7 @@
+generated/
+data/
+uploads/
+tmp/
+*.log
+*.pid
+node_modules/

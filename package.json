@@ -13,6 +13,7 @@
   "scripts": {
     "doctor": "uv run --project packages/ops_doctor wcapi-doctor",
     "doctor:strict": "uv run --project packages/ops_doctor wcapi-doctor --strict",
-    "check:layout": "test -f README.md && test -d providers && test -d shims && test -d packages && test -d ops"
+    "check:layout": "test -f README.md && test -d providers && test -d shims && test -d packages && test -d ops",
+    "prompt:build": "uv run --project packages/prompt-factory prompt-factory build --profile all"
   }
 }

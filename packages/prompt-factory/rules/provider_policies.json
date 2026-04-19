@@ -1,0 +1,16 @@
+{
+  "defaults": {
+    "allow_humans": false,
+    "allow_reference_required": false
+  },
+  "exports": {
+    "gpt": {
+      "schema": "telegram-gpt-image-prompt-pool.v1"
+    },
+    "banana": {
+      "schema_version": 2,
+      "min_prompt_chars": 180,
+      "max_prompts": 5000
+    }
+  }
+}

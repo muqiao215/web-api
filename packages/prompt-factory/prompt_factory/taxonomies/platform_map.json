@@ -1,0 +1,13 @@
+{
+  "profile-avatar": ["avatar", "social-profile"],
+  "social-media-post": ["social-media", "content-cover"],
+  "infographic-edu-visual": ["education", "infographic"],
+  "youtube-thumbnail": ["youtube", "thumbnail"],
+  "comic-storyboard": ["comic", "storyboard"],
+  "product-marketing": ["marketing", "ecommerce"],
+  "ecommerce-main-image": ["ecommerce", "product-listing"],
+  "game-asset": ["game", "asset"],
+  "poster-flyer": ["poster", "flyer"],
+  "app-web-design": ["app", "web-design"],
+  "others": ["general"]
+}

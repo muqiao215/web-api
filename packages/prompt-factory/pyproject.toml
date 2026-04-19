@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "prompt-factory"
+version = "0.1.0"
+description = "Unified prompt source and build project for GPT and Gemini/Banana image workflows."
+requires-python = ">=3.11"
+dependencies = ["PyYAML>=6"]
+
+[project.scripts]
+prompt-factory = "prompt_factory.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["prompt_factory*"]
+
+[tool.setuptools.package-data]
+prompt_factory = ["taxonomies/*.json"]

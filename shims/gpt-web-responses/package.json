@@ -3,6 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "check": "echo migrate /root/.ductor/workspace/provider_shims/gpt_web_responses_shim.mjs here later"
+    "check": "find . -name '*.mjs' -not -path './node_modules/*' -print0 | xargs -0 -n1 node --check",
+    "start": "node gpt_web_responses_shim.mjs",
+    "test": "node --test test/*.test.mjs"
   }
 }
