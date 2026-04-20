@@ -410,6 +410,11 @@ export function createOpenAIRouteHandler({
                 conversation_url: result.conversation_url,
                 alt: result.alt,
               },
+              id: result.artifact_id || "",
+              mimeType: result.mime_type || "",
+              sha256: result.sha256 || "",
+              width: result.width ?? null,
+              height: result.height ?? null,
             })
           );
         }

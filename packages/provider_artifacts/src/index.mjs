@@ -26,6 +26,7 @@ export function buildArtifactRecord({
   mimeType = "",
   metadata = {},
   idPrefix = "artifact",
+  id = "",
 }) {
   if (!provider) throw new Error("provider is required");
   if (!model) throw new Error("model is required");
@@ -33,7 +34,7 @@ export function buildArtifactRecord({
 
   return {
     contract_version: ARTIFACT_CONTRACT_VERSION,
-    id: createArtifactId(idPrefix),
+    id: id || createArtifactId(idPrefix),
     object: "artifact",
     provider,
     kind: normalizeKind(kind),
@@ -73,6 +74,7 @@ export function createArtifactStore({ indexPath, publicBaseUrl = "", publicPathP
     mimeType = "",
     metadata = {},
     idPrefix = "artifact",
+    id = "",
   }) {
     const filename = path.basename(localPath);
     const base = String(publicBaseUrl || "").replace(/\/+$/, "");
@@ -89,6 +91,7 @@ export function createArtifactStore({ indexPath, publicBaseUrl = "", publicPathP
       mimeType,
       metadata,
       idPrefix,
+      id,
     });
     const index = await readIndex();
     index[record.id] = record;

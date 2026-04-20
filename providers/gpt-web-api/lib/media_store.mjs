@@ -14,7 +14,11 @@ export class MediaStore {
     });
   }
 
-  async recordGeneratedMedia({ provider, kind, model, prompt, outputPath, sourceUrl = "", metadata = {} }) {
+  async recordGeneratedMedia({ provider, kind, model, prompt, outputPath, sourceUrl = "", metadata = {}, id = "", mimeType = "", sha256 = "", width = null, height = null }) {
+    const extra = {};
+    if (sha256) extra.sha256 = sha256;
+    if (width !== null && width !== undefined) extra.width = width;
+    if (height !== null && height !== undefined) extra.height = height;
     return this.store.recordArtifact({
       provider,
       kind,
@@ -22,8 +26,10 @@ export class MediaStore {
       prompt,
       localPath: outputPath,
       sourceUrl,
-      metadata,
+      metadata: { ...metadata, ...extra },
       idPrefix: "artifact",
+      id,
+      mimeType,
     });
   }
 
