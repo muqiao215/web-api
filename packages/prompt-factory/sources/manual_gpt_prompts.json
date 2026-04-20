@@ -110,6 +110,83 @@
       "original_author": "神奇小喷菇AIGC",
       "notes": "Extracted via Jina from https://x.com/i/status/2045802847573520723; normalized social noise only.",
       "prompt": "Beautiful golden-hour street portrait of a person walking past a flower shop, elegant data annotation overlay with minimalist thin white bounding boxes around the face and hands, a small box around a nearby bicycle with a confidence label, clean sans-serif captions, subtle cool desaturated grading, artistic surveillance aesthetic, tension between beauty and clinical annotation, high-quality photographic base image, small timestamp in the corner."
+    },
+    {
+      "source_id": "manual-dali-yunnan-vintage-travel-poster",
+      "title": "Dali Yunnan Vintage Travel Poster",
+      "quality_tier": "high",
+      "platform_tags": ["gpt-image", "illustration", "travel-poster"],
+      "model_tags": ["gpt-image-2", "gpt-image"],
+      "category_tags": ["manual-curated", "travel", "yunnan", "dali", "retro-poster", "pencil-illustration"],
+      "original_author": "user",
+      "notes": "User-provided GPT image prompt; stored verbatim except surrounding chat noise.",
+      "prompt": "Modern pencil illustration of Vintage travel poster illustration of Dali, Yunnan, panoramic Erhai Lake shoreline scene, classic 1960s white car driving along a curved lakeside road, shimmering deep blue lake with small fishing boats and distant white seagulls, traditional Bai-style white houses with dark tiled roofs nestled at the foot of the Cangshan Mountains, bright blue sky with soft drifting clouds, flowering bougainvillea branches and lush green trees framing the foreground, warm plateau sunlight, bold vibrant colors, retro 1950s travel poster style, cinematic composition, high detail, screen print texture, graphic illustration. Hand-drawn style, illustration with loose strokes and defined contours. High-contrast color palette, maintaining chromatic harmony between background and elements. Contemporary and decorative aesthetic."
+    },
+    {
+      "source_id": "manual-space-tension-saturn-ring-abyss",
+      "title": "Space Tension - Saturn Ring Abyss",
+      "quality_tier": "high",
+      "platform_tags": ["gpt-image", "space", "cinematic", "science-fiction"],
+      "model_tags": ["gpt-image-2", "gpt-image"],
+      "category_tags": ["manual-curated", "space", "planetary", "saturn", "visual-tension"],
+      "original_author": "assistant",
+      "notes": "Created for user's request: spacecraft-photo grounding with stronger visual tension.",
+      "prompt": "A dramatic raw spacecraft camera image from within Saturn's ring plane, the rings stretching across the frame like an endless icy canyon, millions of tiny ice fragments catching distant sunlight, Saturn looming huge in the background with its shadow slicing across the rings, deep black space behind, extreme sense of scale and isolation, realistic probe-camera optics, slight sensor noise and compression artifacts, cold scientific color grading, high visual tension, monumental planetary geometry, no fantasy nebula, no visible spacecraft, no cinematic lens flare, 16:9 aspect ratio."
+    },
+    {
+      "source_id": "manual-space-tension-jupiter-storm-wall",
+      "title": "Space Tension - Jupiter Storm Wall",
+      "quality_tier": "high",
+      "platform_tags": ["gpt-image", "space", "cinematic", "planetary"],
+      "model_tags": ["gpt-image-2", "gpt-image"],
+      "category_tags": ["manual-curated", "space", "planetary", "jupiter", "visual-tension"],
+      "original_author": "assistant",
+      "notes": "Created for user's request: spacecraft-photo grounding with stronger visual tension.",
+      "prompt": "A high-tension spacecraft flyby photograph skimming above Jupiter's atmosphere, the curved horizon tilted aggressively, gigantic storm systems rising like a living ocean of clouds, turbulent rust, cream, ochre and charcoal bands twisting into a massive vortex below, sunlight grazing the cloud tops with sharp contrast, black space cutting across the upper edge, raw planetary mission imaging, realistic sensor grain, faint telemetry compression, overwhelming scale, dangerous close-pass feeling, documentary realism mixed with sublime cosmic dread, no fantasy elements, 16:9 aspect ratio."
+    },
+    {
+      "source_id": "manual-space-tension-mars-eclipse-orbit",
+      "title": "Space Tension - Mars Eclipse Orbit",
+      "quality_tier": "high",
+      "platform_tags": ["gpt-image", "space", "cinematic", "planetary"],
+      "model_tags": ["gpt-image-2", "gpt-image"],
+      "category_tags": ["manual-curated", "space", "planetary", "mars", "visual-tension"],
+      "original_author": "assistant",
+      "notes": "Created for user's request: spacecraft-photo grounding with stronger visual tension.",
+      "prompt": "A dramatic orbital spacecraft image above Mars during a partial solar eclipse by Phobos, the red planet's cratered surface below fading into long black shadows, a small dark moon crossing the harsh white sun near the horizon, thin blue atmospheric rim glowing along the Martian limb, enormous empty black sky above, stark geometry, lonely exploration mood, raw probe-camera aesthetic, muted scientific colors, subtle sensor noise, high contrast but realistic lighting, tense and cinematic without lens flare, no astronauts, no spacecraft, 3:2 aspect ratio."
+    },
+    {
+      "source_id": "manual-space-tension-neptune-edge-of-darkness",
+      "title": "Space Tension - Neptune Edge of Darkness",
+      "quality_tier": "high",
+      "platform_tags": ["gpt-image", "space", "cinematic", "planetary"],
+      "model_tags": ["gpt-image-2", "gpt-image"],
+      "category_tags": ["manual-curated", "space", "planetary", "neptune", "visual-tension"],
+      "original_author": "assistant",
+      "notes": "Created for user's request: spacecraft-photo grounding with stronger visual tension.",
+      "prompt": "A distant deep-space probe photograph of Neptune half-swallowed by darkness, the planet's blue disk emerging from black shadow like a cold eye, faint storm bands and a dark vortex barely visible, a tiny moon crossing the foreground as a sharp black silhouette, vast negative space surrounding everything, extreme outer-solar-system isolation, restrained but dramatic blue color calibration, raw spacecraft imaging texture, slight grain and cosmic-ray speckles, haunting scientific realism, ominous and beautiful, no nebula, no fantasy glow, 21:9 aspect ratio."
+    },
+    {
+      "source_id": "manual-space-tension-venus-inferno-crescent",
+      "title": "Space Tension - Venus Inferno Crescent",
+      "quality_tier": "high",
+      "platform_tags": ["gpt-image", "space", "cinematic", "planetary"],
+      "model_tags": ["gpt-image-2", "gpt-image"],
+      "category_tags": ["manual-curated", "space", "planetary", "venus", "visual-tension"],
+      "original_author": "assistant",
+      "notes": "Created for user's request: spacecraft-photo grounding with stronger visual tension.",
+      "prompt": "A high-drama spacecraft flyby image of Venus as a blazing crescent, thick sulfur clouds forming violent swirling patterns across the illuminated limb, the night side falling into complete blackness, sunlight blasting from behind the planet but without artificial lens flare, pale gold, ivory and burnt amber atmospheric tones, strong diagonal composition, the planet almost too close to the camera, raw archival probe image quality, slight sensor noise, faint scan lines, oppressive heat and scale conveyed through light and texture, realistic but visually intense, no fantasy surface, no starscape decoration, 16:9 aspect ratio."
+    },
+    {
+      "source_id": "manual-gulong-sword-duel-featured",
+      "title": "Gu Long Snow Valley Sword Duel",
+      "quality_tier": "high",
+      "platform_tags": ["gpt-image", "poster", "game-promo", "cinematic"],
+      "model_tags": ["gpt-image-2", "gpt-image"],
+      "category_tags": ["manual-curated", "精选", "wuxia", "gu-long", "martial-arts", "featured"],
+      "original_author": "user",
+      "notes": "User-selected featured prompt; preserve the Gu Long-style static killing intent and poster text.",
+      "prompt": "Gu Long wuxia style, cold restrained realism, game key art poster, two swordsmen in a deadly standoff. On the left stands Yan Shisan in black, on the right stands the Third Young Master in white. They face each other at extremely close range in a snow-swept mountain valley at night, bodies slightly turned, swords already drawn but neither has struck. Two traditional Chinese straight double-edged jian extend from left and right, long slender blades with central ridge and guards, the sword tips suspended one inch apart without touching, a faint cold spark glowing between them, emphasizing the tension of life and death already decided before the first move. Environment: barren mountain snow night, wind and snow blowing sideways, fine snow particles and dust suspended in the air, blurred mountains and deep ravine in the background, symmetrical but oppressive composition, controlled negative space at the center. Lighting is extremely cold and dim, most of both figures hidden in shadow, only a weak glint revealing facial contours, eyes, and blade edges, emphasizing metallic coldness and killing intent. Character mood: the black-clad swordsman is bleak, resolute, carrying the aura of death; the white-clad swordsman is calm, restrained, almost godlike in composure. Film-level realism, ultra-detailed fabric, hair, skin, and steel textures, slight grain, faint film noise, epic vertical composition. Add large calligraphic title at the top: 「此剑之后 世上再无剑」 and smaller subtitle: 「一剑出 江湖死」. Minimalist wuxia philosophy, lethal stillness, frozen air, time seemingly stopped, no unnecessary action, no exaggerated effects, the narrative built on confrontation and distance, strong Eastern negative space, oppressive calm, fatalistic atmosphere, vertical game poster composition."
     }
   ]
 }
