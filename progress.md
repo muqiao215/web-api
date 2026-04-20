@@ -219,6 +219,12 @@
   - CLI gains `--canvas-runtime-script-path=<path>` flag
   - `printText` updated to display new fields (capabilities, provider_count, upstream_status, blocked_by, service_alive, etc.)
   - All 38 tests pass (6 new tests for runtime_contract enrichment and canvas thin/rich auto-detection)
+- **Phase 5E follow-up: sub2api normalizer bug fix** *(this session)*:
+  - Root cause: `normalizeSub2apiHealth` checked `raw.ok` but actual sub2api `/health` returns `{"status":"ok"}` — field name mismatch caused wrong status detection.
+  - Live sub2api `/health` verified: `{"status":"ok"}` only. No richer safe endpoints exist (`/admin/status` and `/metrics` return HTML, `/v1/models` requires API key).
+  - Fix: `normalizeSub2apiHealth` now reads `raw.status` (the actual field), maps `status === "ok"` → `"ok"` else → `"error"`. `runtime` set to `null` since no richer fields are available from any safe endpoint.
+  - `printText` updated: displays `status=${health.status}` instead of `ok=${health.ok}`.
+  - Tests updated to use correct field names; all 38 tests pass.
 - Deferred:
   - Billing, payment, SaaS user management.
 
@@ -250,6 +256,7 @@
 | Phase 5B control-workbench | `apps/control-workbench/test/index.test.mjs` | All 23 pass | All 23 pass (normalizeGptHealth 6, normalizeCanvasHealth 7, buildSummary 10) | pass |
 | Phase 5C control-workbench v2 | `apps/control-workbench/test/index.test.mjs` | All 32 pass | All 32 pass (added 9: normalizeSub2apiHealth 3, normalizeOpsDoctor 6) | pass |
 | Phase 5E control-workbench v3 enrichment | `apps/control-workbench/test/index.test.mjs` | All 38 pass | All 38 pass (added 6: GPT runtime_contract fields 4, canvas thin/rich auto-detect 2) | pass |
+| Phase 5E sub2api normalizer fix | `apps/control-workbench/test/index.test.mjs` | All 38 pass | All 38 pass (updated 3 sub2api tests to use actual `status` field; no new tests added — existing tests corrected) | pass |
 | Phase 5D ops_doctor historical vs active | `packages/ops_doctor/test/diagnose.test.mjs` | All 11 pass | All 11 pass (4 new: historical failures OK, active running OK, active queued OK, mixed only active affects health) | pass |
 
 ## Error Log
@@ -274,7 +281,7 @@
 | 2026-04-20 Phase 5A | audit_log test 10: query(since) returned 2 events instead of 1 | 1 | Root cause: evt_new's auto-filled timestamp (now) satisfies `>= before`, same as evt_old's explicit timestamp (before). Fix: capture evt_new's actual timestamp from log() return value and use it as `since` filter so only evt_new (timestamp=now) satisfies `>= now`. |
 | 2026-04-20 Phase 5A | audit_log test 11: "Missing expected exception" — enrich=true auto-filled id/event_type/actor before validation | 1 | Root cause: `enrichEvent()` always auto-filled missing required fields regardless of `enrich` flag. Fix: refactored `enrichEvent(event, { enrich })` to accept enrich option; when `enrich=false` it returns raw event with contract_version only. Test passes `enrich: false` to createAuditLogger. |
 | 2026-04-20 Phase 5A | audit_log test 11 follow-up: enrichEvent still auto-filled even after adding { enrich } param | 1 | log() called `enrichEvent(partial)` without passing the `enrich` flag. Fixed: `enrichEvent(partial, { enrich })` now passes the flag through. |
-| 2026-04-20 Phase 5E | normalizeGptHealth test "service_alive=false to status=blocked" failing | 1 | Root cause: old code checked `raw.service_alive` (flat), but real GPT /health has `service_alive` inside `runtime_contract`. Fix: check `rc.service_alive ?? raw.service_alive` — prefers nested (real data), falls back to flat (test fixture compatibility). |
+| 2026-04-20 Phase 5E (follow-up) | normalizeSub2apiHealth checked `raw.ok` but live sub2api `/health` returns `{"status":"ok"}` | 1 | Changed to read `raw.status` instead of `raw.ok`; maps `status === "ok"` → `"ok"`, else → `"error"`; `runtime` set to `null` since no richer safe endpoints exist. |
 | 2026-04-20 Phase 5A | audit_log test 11: "Missing expected exception" — enrich=true auto-filled id/event_type/actor before validation | 1 | Root cause: `enrichEvent()` always auto-filled missing required fields regardless of `enrich` flag. Fix: refactored `enrichEvent(event, { enrich })` to accept enrich option; when `enrich=false` it returns raw event with contract_version only. Test passes `enrich: false` to createAuditLogger. |
 | 2026-04-20 Phase 5A | audit_log test 11 follow-up: enrichEvent still auto-filled even after adding { enrich } param | 1 | log() called `enrichEvent(partial)` without passing the `enrich` flag. Fixed: `enrichEvent(partial, { enrich })` now passes the flag through. |
 

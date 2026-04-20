@@ -308,41 +308,34 @@ test("normalizeCanvasHealth rich runtime_status response preserves upstream_heal
 
 // ─── normalizeSub2apiHealth ────────────────────────────────────────────────────
 
-test("normalizeSub2apiHealth maps ok=true to status=ok", () => {
+test("normalizeSub2apiHealth maps status=ok to provider status=ok", () => {
+  // Actual sub2api /health response: {"status": "ok"}
   const input = {
-    ok: true,
-    version: "1.2.3",
-    uptime_s: 3600,
-    providers: [{ id: "gpt-web-api" }, { id: "gemini-canvas" }],
-    accounts: [{ id: "acct1" }],
+    status: "ok",
   };
   const result = normalizeSub2apiHealth(input);
   assert.equal(result.provider, "sub2api");
   assert.equal(result.providerType, "shim");
   assert.equal(result.status, "ok");
-  assert.equal(result.health.ok, true);
-  assert.equal(result.health.version, "1.2.3");
-  assert.equal(result.health.uptime_s, 3600);
-  assert.equal(result.runtime.providers_count, 2);
-  assert.equal(result.runtime.accounts_count, 1);
+  assert.equal(result.health.status, "ok");
+  assert.equal(result.runtime, null);
   assert.equal(result.accountPool, null);
   assert.equal(result.proxyPool, null);
 });
 
-test("normalizeSub2apiHealth maps ok=false to status=error", () => {
-  const result = normalizeSub2apiHealth({ ok: false });
+test("normalizeSub2apiHealth maps status!=ok to provider status=error", () => {
+  // e.g. sub2api returns {status: "error"} or {status: "degraded"} when unhealthy
+  const result = normalizeSub2apiHealth({ status: "error" });
   assert.equal(result.status, "error");
 });
 
-test("normalizeSub2apiHealth handles missing fields gracefully", () => {
+test("normalizeSub2apiHealth handles missing status field gracefully", () => {
+  // Empty object — status is undefined, treated as not-ok → error
   const result = normalizeSub2apiHealth({});
   assert.equal(result.provider, "sub2api");
-  assert.equal(result.status, "ok");
-  assert.equal(result.health.ok, null);
-  assert.equal(result.health.version, null);
-  assert.equal(result.health.uptime_s, null);
-  assert.equal(result.runtime.providers_count, null);
-  assert.equal(result.runtime.accounts_count, null);
+  assert.equal(result.status, "error"); // undefined !== "ok" → error
+  assert.equal(result.health.status, null);
+  assert.equal(result.runtime, null);
 });
 
 // ─── normalizeOpsDoctor ────────────────────────────────────────────────────────

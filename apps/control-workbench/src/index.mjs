@@ -227,23 +227,27 @@ export function normalizeCanvasHealth(raw) {
 
 /**
  * Normalize sub2api /health output → ProviderSnapshot
+ *
+ * Actual sub2api /health response:
+ *   {"status": "ok"}                        ← thin health, no auth required
+ *
+ * The live service does NOT expose version, uptime_s, providers, or accounts
+ * via any safe unauthenticated endpoint. Those fields remain null.
+ *
  * @param {object} raw
  * @returns {ProviderSnapshot}
  */
 export function normalizeSub2apiHealth(raw) {
+  // Real sub2api /health returns {status: "ok"} — not {ok: true}
+  const statusOk = raw.status === "ok";
   return {
     provider: "sub2api",
     providerType: "shim",
-    status: raw.ok === false ? "error" : "ok",
+    status: statusOk ? "ok" : "error",
     health: {
-      ok: raw.ok ?? null,
-      version: raw.version ?? null,
-      uptime_s: raw.uptime_s ?? null,
+      status: raw.status ?? null,
     },
-    runtime: {
-      providers_count: raw.providers?.length ?? null,
-      accounts_count: raw.accounts?.length ?? null,
-    },
+    runtime: null,
     accountPool: null,
     proxyPool: null,
     queueState: null,
@@ -560,7 +564,7 @@ function printText(report) {
       if (h.browser_connected !== undefined && h.browser_connected !== null) console.log(`    browser_connected=${h.browser_connected}`);
       if (h.cdp !== undefined && h.cdp !== null) console.log(`    cdp=${h.cdp}`);
       if (h.blocked_by !== undefined && h.blocked_by !== null) console.log(`    blocked_by=${h.blocked_by}`);
-      if (h.ok !== undefined && h.ok !== null) console.log(`    ok=${h.ok}`);
+      if (h.status !== undefined && h.status !== null) console.log(`    status=${h.status}`);
       if (h.uptime_s !== undefined && h.uptime_s !== null) console.log(`    uptime_s=${h.uptime_s}`);
     }
     if (p.runtime) {
