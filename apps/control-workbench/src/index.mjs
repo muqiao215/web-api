@@ -1,10 +1,10 @@
 /**
  * apps/control-workbench — Read-only control surface for provider/admin runtime state.
  *
- * Contract version: wcapi.control-workbench.v1
+ * Contract version: wcapi.control-workbench.v2
  *
  * Design: this package is intentionally read-only. It fetches from existing HTTP
- * health/status endpoints (GPT admin service, canvas-to-api, ops_doctor) and
+ * health/status endpoints (GPT admin service, canvas-to-api, sub2api) and
  * aggregates them into a unified machine-readable control view. It does NOT
  * modify state, issue commands, or start new services.
  *
@@ -21,7 +21,7 @@
  *   - Direct systemd control
  */
 
-export const CONTROL_WORKBENCH_VERSION = "wcapi.control-workbench.v1";
+export const CONTROL_WORKBENCH_VERSION = "wcapi.control-workbench.v2";
 
 // ─── Endpoint registry ────────────────────────────────────────────────────────
 
@@ -35,7 +35,8 @@ const DEFAULT_ENDPOINTS = {
  * @typedef {object} ControlBenchOptions
  * @property {Record<string, string>} [endpoints]  — override default HTTP endpoints
  * @property {number} [timeoutMs]                — fetch timeout in ms (default 3000)
- * @property {boolean} [includeSub2api]          — whether to fetch sub2api health (default false)
+ * @property {string} [opsDoctorPath]            — path to diagnose.mjs (default: repo-relative)
+ * @property {boolean} [includeSub2api]          — whether to fetch sub2api health (default true)
  */
 
 /**
@@ -58,6 +59,14 @@ const DEFAULT_ENDPOINTS = {
  * @property {string[]} errors             — endpoint errors encountered
  * @property {ProviderSnapshot[]} providers
  * @property {object} summary
+ * @property {object|null} opsDoctor       — ops_doctor diagnostic checks (null if unavailable)
+ */
+
+/**
+ * @typedef {object} OpsDoctorResult
+ * @property {string} timestamp
+ * @property {string} repo_root
+ * @property {Array<{name: string, status: string, detail: string}>} checks
  */
 
 // ─── Fetch helpers ────────────────────────────────────────────────────────────
@@ -166,16 +175,88 @@ export function normalizeCanvasHealth(raw) {
 }
 
 /**
- * Normalize sub2api /health output → minimal snapshot
+ * Normalize sub2api /health output → ProviderSnapshot
  * @param {object} raw
- * @returns {object}
+ * @returns {ProviderSnapshot}
  */
-function normalizeSub2apiHealth(raw) {
+export function normalizeSub2apiHealth(raw) {
   return {
     provider: "sub2api",
     providerType: "shim",
     status: raw.ok === false ? "error" : "ok",
-    health: { ok: raw.ok ?? null },
+    health: {
+      ok: raw.ok ?? null,
+      version: raw.version ?? null,
+      uptime_s: raw.uptime_s ?? null,
+    },
+    runtime: {
+      providers_count: raw.providers?.length ?? null,
+      accounts_count: raw.accounts?.length ?? null,
+    },
+    accountPool: null,
+    proxyPool: null,
+    queueState: null,
+  };
+}
+
+// ─── OpsDoctor integration ────────────────────────────────────────────────────
+
+/**
+ * Spawn the ops_doctor diagnose.mjs script and return parsed JSON.
+ * @param {string} diagnosePath  — absolute path to diagnose.mjs
+ * @param {string} [extraArg]   — optional extra argument (e.g. "--jobs <path>")
+ * @returns {Promise<{data: OpsDoctorResult|null, error: string|null}>}
+ */
+async function runOpsDoctor(diagnosePath, extraArg = "") {
+  const { spawn } = await import("node:child_process");
+  return new Promise((resolve) => {
+    // Build args: diagnosePath followed by optional --jobs override
+    const args = extraArg ? [diagnosePath, ...extraArg.split(" ")] : [diagnosePath];
+    const child = spawn(process.execPath, args, { signal: AbortSignal.timeout(8000) });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.on("data", (d) => { stdout += d; });
+    child.stderr.on("data", (d) => { stderr += d; });
+    child.on("close", (code) => {
+      if (code === 0 || code === 1) {
+        // code=1 means checks ran but some WARN/FAIL — still parse output
+        try {
+          const data = JSON.parse(stdout);
+          resolve({ data, error: null });
+        } catch {
+          resolve({ data: null, error: `JSON parse error: ${stdout.slice(0, 200)}` });
+        }
+      } else {
+        resolve({ data: null, error: stderr || `exit ${code}` });
+      }
+    });
+    child.on("error", (err) => resolve({ data: null, error: err.message }));
+  });
+}
+
+/**
+ * Summarize ops_doctor checks into a one-line status per check name.
+ * @param {OpsDoctorResult} data
+ * @returns {object}
+ */
+export function normalizeOpsDoctor(data) {
+  if (!data?.checks) return null;
+  /** @type {Record<string, {status: string, detail: string}>} */
+  const byName = {};
+  for (const check of data.checks) {
+    byName[check.name] = { status: check.status, detail: check.detail ?? "" };
+  }
+  return {
+    timestamp: data.timestamp ?? null,
+    repo_root: data.repo_root ?? null,
+    checks: byName,
+    // Overall: FAIL if any check FAIL, WARN if any WARN, else OK
+    overall:
+      data.checks.some((c) => c.status === "FAIL")
+        ? "fail"
+        : data.checks.some((c) => c.status === "WARN")
+        ? "warn"
+        : "ok",
   };
 }
 
@@ -191,7 +272,8 @@ export function createControlBench(options = {}) {
   const {
     endpoints = {},
     timeoutMs = 3000,
-    includeSub2api = false,
+    includeSub2api = true,
+    opsDoctorPath = "",
   } = options;
 
   const eps = { ...DEFAULT_ENDPOINTS, ...endpoints };
@@ -222,6 +304,7 @@ export function createControlBench(options = {}) {
         providers.push(normalizeGptHealth(gptResult.data));
       } catch (err) {
         snapshotErrors.push(`gpt-web-api: normalize error — ${err}`);
+        providers.push({ provider: "gpt-web-api", providerType: "browser-session", status: "error" });
       }
     } else if (gptResult.error) {
       snapshotErrors.push(`gpt-web-api: ${gptResult.error}`);
@@ -233,20 +316,39 @@ export function createControlBench(options = {}) {
         providers.push(normalizeCanvasHealth(canvasResult.data));
       } catch (err) {
         snapshotErrors.push(`gemini-canvas: normalize error — ${err}`);
+        providers.push({ provider: "gemini-canvas", providerType: "browser-session", status: "error" });
       }
     } else if (canvasResult.error) {
       snapshotErrors.push(`gemini-canvas: ${canvasResult.error}`);
       providers.push({ provider: "gemini-canvas", providerType: "browser-session", status: "unreachable" });
     }
 
-    if (includeSub2api && sub2apiResult.data) {
-      try {
-        providers.push(normalizeSub2apiHealth(sub2apiResult.data));
-      } catch (err) {
-        snapshotErrors.push(`sub2api: normalize error — ${err}`);
+    // sub2api is now included by default and participates in summary counts
+    if (includeSub2api) {
+      if (sub2apiResult.data) {
+        try {
+          providers.push(normalizeSub2apiHealth(sub2apiResult.data));
+        } catch (err) {
+          snapshotErrors.push(`sub2api: normalize error — ${err}`);
+          providers.push({ provider: "sub2api", providerType: "shim", status: "error" });
+        }
+      } else if (sub2apiResult.error) {
+        snapshotErrors.push(`sub2api: ${sub2apiResult.error}`);
+        providers.push({ provider: "sub2api", providerType: "shim", status: "unreachable" });
       }
-    } else if (includeSub2api && sub2apiResult.error) {
-      snapshotErrors.push(`sub2api: ${sub2apiResult.error}`);
+    }
+
+    // ops_doctor: run the diagnostic script if path is provided
+    /** @type {object|null} */
+    let opsDoctorResult = null;
+    if (opsDoctorPath) {
+      const doctorRes = await runOpsDoctor(opsDoctorPath);
+      if (doctorRes.data) {
+        opsDoctorResult = normalizeOpsDoctor(doctorRes.data);
+      } else {
+        snapshotErrors.push(`ops_doctor: ${doctorRes.error ?? "no output"}`);
+        opsDoctorResult = { overall: "unavailable", error: doctorRes.error, checks: {} };
+      }
     }
 
     const elapsed_ms = Date.now() - t0;
@@ -261,6 +363,7 @@ export function createControlBench(options = {}) {
       errors: snapshotErrors,
       providers,
       summary,
+      opsDoctor: opsDoctorResult,
     };
   }
 
@@ -299,16 +402,18 @@ export function buildSummary(providers) {
 // ─── CLI entry point ─────────────────────────────────────────────────────────
 
 /**
- * CLI: node src/index.mjs [--json] [--include-sub2api] [--timeout=3000]
+ * CLI: node src/index.mjs [--json] [--no-sub2api] [--ops-doctor-path=<path>] [--timeout=3000]
  */
 export async function main(argv = process.argv) {
   const args = argv.slice(2);
   const asJson = args.includes("--json");
-  const includeSub2api = args.includes("--include-sub2api");
+  const includeSub2api = !args.includes("--no-sub2api");
+  const opsDoctorArg = args.find((a) => a.startsWith("--ops-doctor-path="));
+  const opsDoctorPath = opsDoctorArg ? opsDoctorArg.split("=")[1] : "";
   const timeoutArg = args.find((a) => a.startsWith("--timeout="));
   const timeoutMs = timeoutArg ? parseInt(timeoutArg.split("=")[1], 10) : 3000;
 
-  const bench = createControlBench({ includeSub2api, timeoutMs });
+  const bench = createControlBench({ includeSub2api, timeoutMs, opsDoctorPath });
   const report = await bench.buildReport();
 
   if (asJson) {
@@ -318,7 +423,11 @@ export async function main(argv = process.argv) {
   }
 
   // Exit code: 0 = all ok, 1 = any errors or unreachable
-  const hasErrors = report.errors.length > 0 || report.summary.counts.error > 0 || report.summary.counts.unreachable > 0;
+  const hasErrors =
+    report.errors.length > 0 ||
+    report.summary.counts.error > 0 ||
+    report.summary.counts.unreachable > 0 ||
+    report.opsDoctor?.overall === "fail";
   process.exit(hasErrors ? 1 : 0);
 }
 
@@ -341,10 +450,20 @@ function printText(report) {
       if (h.browser_connected !== undefined && h.browser_connected !== null) console.log(`    browser_connected=${h.browser_connected}`);
       if (h.cdp_ready !== undefined && h.cdp_ready !== null) console.log(`    cdp_ready=${h.cdp_ready}`);
       if (h.cdp !== undefined && h.cdp !== null) console.log(`    cdp=${h.cdp}`);
+      if (h.ok !== undefined && h.ok !== null) console.log(`    ok=${h.ok}`);
+      if (h.uptime_s !== undefined && h.uptime_s !== null) console.log(`    uptime_s=${h.uptime_s}`);
     }
     if (p.runtime?.queue_depth !== undefined && p.runtime?.queue_depth !== null) console.log(`    queue_depth=${p.runtime.queue_depth}`);
+    if (p.runtime?.providers_count !== undefined && p.runtime?.providers_count !== null) console.log(`    providers=${p.runtime.providers_count}`);
     if (p.accountPool) console.log(`    account_pool: total=${p.accountPool.total} available=${p.accountPool.available} leased=${p.accountPool.leased}`);
     if (p.proxyPool) console.log(`    proxy_pool: total=${p.proxyPool.total} healthy=${p.proxyPool.healthy}`);
+  }
+  if (report.opsDoctor) {
+    console.log(`\nOps Doctor: ${report.opsDoctor.overall}`);
+    if (report.opsDoctor.error) console.log(`  error: ${report.opsDoctor.error}`);
+    for (const [name, check] of Object.entries(report.opsDoctor.checks ?? {})) {
+      console.log(`  [${check.status}] ${name}: ${check.detail}`);
+    }
   }
 }
 

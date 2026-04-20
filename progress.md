@@ -159,9 +159,17 @@
 
 ### Phase 5: Observability & Admin Surface
 
-- **Status:** partial — Phase 5A and Phase 5B complete; billing/deferred items deferred.
+- **Status:** partial — Phase 5A and Phase 5B complete; Phase 5C (control-workbench expansion) complete; billing/deferred items deferred.
 - **Phase 5A:** ops_doctor extension + audit_log package.
 - **Phase 5B:** control-workbench skeleton + canvas-to-api vocabulary alignment (completed in prior session).
+- **Phase 5C:** control-workbench narrow expansion — sub2api fully wired into providers+summary, ops_doctor diagnostic layer added.
+  - `normalizeSub2apiHealth` now exported and returns full ProviderSnapshot with health.version, health.uptime_s, runtime.providers_count, runtime.accounts_count.
+  - sub2api now participates in `providers[]` and `buildSummary` counts by default (`includeSub2api` defaults to `true`; use `--no-sub2api` to opt out).
+  - Error-state normalization for GPT and Canvas now adds a placeholder `{ status: "error" }` entry to providers array (previously only "unreachable" placeholder was added on fetch failure).
+  - Added `opsDoctorPath` option to `createControlBench()` — when set, spawns `diagnose.mjs` subprocess and includes parsed checks in report under `opsDoctor` field.
+  - `normalizeOpsDoctor(data)` normalizes the diagnose.mjs JSON output: `checks` map by name, `overall` = "fail"/"warn"/"ok".
+  - CLI gains `--ops-doctor-path=<abs-path>` flag; exit code 1 also when `opsDoctor.overall === "fail"`.
+  - All 32 tests pass (9 new tests added for sub2api + ops_doctor coverage).
 - Phase 5A actions taken:
   - Created `packages/audit_log/src/index.mjs` — JSONL append-only audit logger factory (`createAuditLogger({ dataDir, validate, enrich })`). Writes one JSON object per line to `{dataDir}/audit.jsonl`. Auto-fills `contract_version`, `id`, `timestamp`, `actor.type` when `enrich=true`. `query({ event_type, actor_type, since, limit })` supports temporal and type filtering. `enrichEvent` now accepts `{ enrich }` option to allow validation of raw partials before auto-fill.
   - Created `packages/ops_doctor/src/diagnose.mjs` — Node.js diagnostic companion script called by Python CLI as subprocess. Checks: `output_dir_writable` (try-write test with timestamped temp file), `jobs_json` (summary counts), `media_json` (artifact/legacy summary), `provider_pool_data` (if pool data path provided), `proxy_pool_data` (if proxy data path provided). Outputs JSON with `{ checks, timestamp, repo_root }`; exit 1 on any FAIL.
@@ -188,6 +196,9 @@
   - `apps/control-workbench/package.json` (updated — added main, exports, engines)
   - `apps/control-workbench/test/index.test.mjs` (new — 23 tests)
   - `providers/canvas-to-api/runtime_status.mjs` (updated — runtime_contract, queue.depth structure)
+- Phase 5C (control-workbench narrow expansion — this session):
+  - `apps/control-workbench/src/index.mjs` (updated — v2: sub2api fully wired, ops_doctor integration, error-state placeholders)
+  - `apps/control-workbench/test/index.test.mjs` (updated — 9 new tests, 32 total: normalizeSub2apiHealth 3, normalizeOpsDoctor 6)
 - Deferred:
   - Billing, payment, SaaS user management.
 
@@ -217,6 +228,7 @@
 | Phase 5A audit_log | `packages/audit_log/test/index.test.mjs` | All 13 pass | All 13 pass (validateEvent 4, log/list/query 7, throws on invalid 2) | pass |
 | Phase 5A diagnose.mjs | `packages/ops_doctor/test/diagnose.test.mjs` | All 7 pass | All 7 pass (exit 0, output_dir_writable, jobs_json, media_json, --jobs override, JSON-only, repo_root) | pass |
 | Phase 5B control-workbench | `apps/control-workbench/test/index.test.mjs` | All 23 pass | All 23 pass (normalizeGptHealth 6, normalizeCanvasHealth 7, buildSummary 10) | pass |
+| Phase 5C control-workbench v2 | `apps/control-workbench/test/index.test.mjs` | All 32 pass | All 32 pass (added 9: normalizeSub2apiHealth 3, normalizeOpsDoctor 6) | pass |
 
 ## Error Log
 

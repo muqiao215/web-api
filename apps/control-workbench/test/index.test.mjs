@@ -4,15 +4,17 @@ import test from "node:test";
 import {
   normalizeGptHealth,
   normalizeCanvasHealth,
+  normalizeSub2apiHealth,
+  normalizeOpsDoctor,
   buildSummary,
   CONTROL_WORKBENCH_VERSION,
 } from "../src/index.mjs";
 
 // ─── CONTROL_WORKBENCH_VERSION ────────────────────────────────────────────────
 
-test("exports CONTROL_WORKBENCH_VERSION as a string", () => {
+test("exports CONTROL_WORKBENCH_VERSION as wcapi.control-workbench.v2", () => {
   assert.equal(typeof CONTROL_WORKBENCH_VERSION, "string");
-  assert.ok(CONTROL_WORKBENCH_VERSION.startsWith("wcapi.control-workbench."));
+  assert.equal(CONTROL_WORKBENCH_VERSION, "wcapi.control-workbench.v2");
 });
 
 // ─── normalizeGptHealth ─────────────────────────────────────────────────────
@@ -177,6 +179,111 @@ test("normalizeCanvasHealth passes through leases array when present", () => {
   const result = normalizeCanvasHealth(input);
   assert.equal(result.queueState.queues[0].leases.length, 1);
   assert.equal(result.queueState.queues[0].leases[0].task_id, "task_1");
+});
+
+// ─── normalizeSub2apiHealth ────────────────────────────────────────────────────
+
+test("normalizeSub2apiHealth maps ok=true to status=ok", () => {
+  const input = {
+    ok: true,
+    version: "1.2.3",
+    uptime_s: 3600,
+    providers: [{ id: "gpt-web-api" }, { id: "gemini-canvas" }],
+    accounts: [{ id: "acct1" }],
+  };
+  const result = normalizeSub2apiHealth(input);
+  assert.equal(result.provider, "sub2api");
+  assert.equal(result.providerType, "shim");
+  assert.equal(result.status, "ok");
+  assert.equal(result.health.ok, true);
+  assert.equal(result.health.version, "1.2.3");
+  assert.equal(result.health.uptime_s, 3600);
+  assert.equal(result.runtime.providers_count, 2);
+  assert.equal(result.runtime.accounts_count, 1);
+  assert.equal(result.accountPool, null);
+  assert.equal(result.proxyPool, null);
+});
+
+test("normalizeSub2apiHealth maps ok=false to status=error", () => {
+  const result = normalizeSub2apiHealth({ ok: false });
+  assert.equal(result.status, "error");
+});
+
+test("normalizeSub2apiHealth handles missing fields gracefully", () => {
+  const result = normalizeSub2apiHealth({});
+  assert.equal(result.provider, "sub2api");
+  assert.equal(result.status, "ok");
+  assert.equal(result.health.ok, null);
+  assert.equal(result.health.version, null);
+  assert.equal(result.health.uptime_s, null);
+  assert.equal(result.runtime.providers_count, null);
+  assert.equal(result.runtime.accounts_count, null);
+});
+
+// ─── normalizeOpsDoctor ────────────────────────────────────────────────────────
+
+test("normalizeOpsDoctor returns null when data.checks is missing", () => {
+  const result = normalizeOpsDoctor({});
+  assert.equal(result, null);
+});
+
+test("normalizeOpsDoctor returns null when data is null", () => {
+  const result = normalizeOpsDoctor(null);
+  assert.equal(result, null);
+});
+
+test("normalizeOpsDoctor overall=ok when all checks OK", () => {
+  const input = {
+    timestamp: "2026-04-20T12:00:00.000Z",
+    repo_root: "/repo",
+    checks: [
+      { name: "output_dir_writable", status: "OK", detail: "/generated is writable" },
+      { name: "jobs_json", status: "OK", detail: "total=7 image_jobs=3" },
+    ],
+  };
+  const result = normalizeOpsDoctor(input);
+  assert.equal(result.overall, "ok");
+  assert.equal(result.timestamp, "2026-04-20T12:00:00.000Z");
+  assert.equal(result.repo_root, "/repo");
+  assert.equal(result.checks.output_dir_writable.status, "OK");
+  assert.equal(result.checks.jobs_json.detail, "total=7 image_jobs=3");
+});
+
+test("normalizeOpsDoctor overall=warn when any check WARN", () => {
+  const input = {
+    timestamp: "2026-04-20T12:00:00.000Z",
+    repo_root: "/repo",
+    checks: [
+      { name: "output_dir_writable", status: "OK", detail: "writable" },
+      { name: "media_json", status: "WARN", detail: "legacy media present" },
+    ],
+  };
+  const result = normalizeOpsDoctor(input);
+  assert.equal(result.overall, "warn");
+});
+
+test("normalizeOpsDoctor overall=fail when any check FAIL", () => {
+  const input = {
+    timestamp: "2026-04-20T12:00:00.000Z",
+    repo_root: "/repo",
+    checks: [
+      { name: "output_dir_writable", status: "OK", detail: "writable" },
+      { name: "jobs_json", status: "FAIL", detail: "not found" },
+    ],
+  };
+  const result = normalizeOpsDoctor(input);
+  assert.equal(result.overall, "fail");
+});
+
+test("normalizeOpsDoctor handles checks with no detail field", () => {
+  const input = {
+    timestamp: "2026-04-20T12:00:00.000Z",
+    repo_root: "/repo",
+    checks: [{ name: "pool_data", status: "OK" }],
+  };
+  const result = normalizeOpsDoctor(input);
+  assert.equal(result.checks.pool_data.status, "OK");
+  assert.equal(result.checks.pool_data.detail, "");
 });
 
 // ─── buildSummary ────────────────────────────────────────────────────────────
