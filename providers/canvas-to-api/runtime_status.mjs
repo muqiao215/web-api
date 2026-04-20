@@ -1,6 +1,12 @@
 import { spawnSync } from "node:child_process";
 
 const CONTRACT_VERSION = "wcapi.browser_worker_runtime.v1";
+// Aligns with packages/provider_contracts/schemas/provider-capability.schema.json runtime_contract field
+const RUNTIME_CONTRACT = {
+  status_schema: "https://local.web-capability-api/schemas/provider-capability.schema.json",
+  artifact_schema: "https://local.web-capability-api/schemas/artifact-record.schema.json",
+  queue_scope: "profile", // profile-serial mode — one Gemini Canvas browser = one serial worker
+};
 const CANVAS_HEALTH_URL = process.env.CANVAS_TO_API_HEALTH_URL || "http://127.0.0.1:7861/health";
 const PROFILE_SPECS = [
   {
@@ -73,9 +79,8 @@ async function inspectProfile(profile) {
       queue: {
         supported: true,
         mode: "profile-serial",
-        pending: null,
-        running: null,
-        locks_active: null,
+        depth: { pending: null, running: null, completed: null, failed: null },
+        leases: [],
       },
       details: {
         browser: version.Browser || "",
@@ -103,9 +108,8 @@ async function inspectProfile(profile) {
       queue: {
         supported: true,
         mode: "profile-serial",
-        pending: null,
-        running: null,
-        locks_active: null,
+        depth: { pending: null, running: null, completed: null, failed: null },
+        leases: [],
       },
       details: {
         systemd: unit,
@@ -171,17 +175,24 @@ async function main() {
     browser_connected: derived.browserConnected,
     browserConnected: derived.browserConnected,
     blocked_by: derived.blockedBy,
+    runtime_contract: RUNTIME_CONTRACT,
+    // queue block aligned with queue-state.schema.json vocabulary
+    // pending/running require upstream polling — null until canvas-to-api exposes task counters
     queue: {
       supported: true,
       mode: "profile-serial",
-      pending: null,
-      running: null,
-      locks_active: null,
-    },
-    lock_policy: {
-      scope: "profile",
-      implementation: "External profile-level lock required",
-      note: "Each persistent Gemini Canvas browser profile must be treated as a single-flight worker until the upstream exposes queue counters.",
+      depth: {
+        pending: null,
+        running: null,
+        completed: null,
+        failed: null,
+      },
+      leases: [],
+      lock_policy: {
+        scope: "profile",
+        implementation: "External profile-level lock required",
+        note: "Each persistent Gemini Canvas browser profile must be treated as a single-flight worker until the upstream exposes queue counters.",
+      },
     },
     profiles,
     capabilities: {

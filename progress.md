@@ -142,11 +142,24 @@
 
 ### Phase 5: Observability & Admin Surface
 
-- **Status:** pending
+- **Status:** partial — Phase 5B complete; full phase deferred
+- **Phase 5B:** control-workbench skeleton + canvas-to-api vocabulary alignment
 - Actions taken:
-  - Not started.
+  - Created `apps/control-workbench/src/index.mjs` — read-only control surface that aggregates state from GPT admin service and canvas-to-api via HTTP. Exports `createControlBench()`, `normalizeGptHealth()`, `normalizeCanvasHealth()`, `buildSummary()`, and CLI `main()`. Aligns with `provider-capability.schema.json` and `queue-state.schema.json` vocabulary.
+  - Updated `providers/canvas-to-api/runtime_status.mjs` — added `runtime_contract` field (status_schema, artifact_schema, queue_scope) aligned with `provider-capability.schema.json`; migrated `queue.pending/running/locks_active` to nested `queue.depth.{pending,running,completed,failed}` structure aligned with `queue-state.schema.json`; same migration applied to per-profile `inspectProfile()` queue blocks.
+  - Fixed `buildSummary()` overall rollup: `degraded` is no longer counted as "healthy" — priority ordering is now unreachable > error > blocked > degraded > mixed > ok.
+  - Added 23 unit tests for control-workbench (normalizeGptHealth, normalizeCanvasHealth, buildSummary coverage).
 - Files created/modified:
-  - None yet.
+  - `apps/control-workbench/src/index.mjs` (new)
+  - `apps/control-workbench/package.json` (updated — added main, exports, engines)
+  - `apps/control-workbench/test/index.test.mjs` (new — 23 tests)
+  - `providers/canvas-to-api/runtime_status.mjs` (updated — runtime_contract, queue.depth structure)
+  - `task_plan.md` (Phase 5 partial update)
+  - `progress.md` (this entry)
+- Deferred:
+  - `packages/ops_doctor` extension for account pool / queue depth / artifact writeability checks.
+  - `packages/audit_log` package or shared audit schema.
+  - Billing, payment, SaaS user management.
 
 ### Phase 6: Verification & Cutover
 
@@ -170,6 +183,7 @@
 | Phase 4 provider_pool | `packages/provider_pool/test/index.test.mjs` | All 13 pass | All 13 pass | pass |
 | Phase 4 proxy_pool | `packages/proxy_pool/test/index.test.mjs` | All 8 pass | All 8 pass | pass |
 | Phase 4 job_queue | `packages/job_queue/test/index.test.mjs` | All 11 pass | All 11 pass | pass |
+| Phase 5B control-workbench | `apps/control-workbench/test/index.test.mjs` | All 23 pass | All 23 pass (normalizeGptHealth 6, normalizeCanvasHealth 7, buildSummary 10) | pass |
 
 ## Error Log
 
@@ -187,12 +201,14 @@
 | 2026-04-20 Phase 4 | ESM packages used `require("node:fs")` instead of `import` | 1 | Replaced with top-level `import fs from "node:fs"` and `import path from "node:path"` in all three packages |
 | 2026-04-20 Phase 4 | job_queue stats test checked `summary.completed` but summary has `succeeded` | 1 | Fixed test to check `summary.succeeded`; `completed` exists only in per-profile depth tracking |
 | 2026-04-20 Phase 4 | provider_admin_service pool accessor used `getPoolPolicy()?.provider` (pool policy has no provider field) | 1 | Added `getProvider()` method to provider_pool and proxy_pool; updated admin service to use it |
+| 2026-04-20 Phase 5B | buildSummary: `degraded` was counted as "healthy" via `totalHealthy = ok+degraded` — `[ok, degraded]` reported overall="ok" | 1 | Changed `buildSummary` to use strict priority ordering: unreachable > error > blocked > degraded > mixed > ok; updated two tests to match corrected logic |
+| 2026-04-20 Phase 5B | normalizeCanvasHealth read `raw.queue.pending` after canvas-to-api was updated to use `queue.depth.pending` | 1 | Updated normalizeCanvasHealth to read `raw.queue.depth.pending` and `raw.queue.depth.running` to match the new canvas-to-api vocabulary |
 
 ## 5-Question Reboot Check
 
 | Question | Answer |
 |----------|--------|
-| Where am I? | Phase 4 complete; provider_pool, proxy_pool, job_queue packages scaffolded; pool status wired into GPT admin service (backward-compatible). |
+| Where am I? | Phase 4 complete; Phase 5B in progress; control-workbench skeleton implemented (23 tests), canvas-to-api vocabulary aligned with queue-state.schema.json. |
 | Where am I going? | Phase 5 builds observability & admin surface (ops_doctor, audit_log, control-workbench). |
 | What's the goal? | Productize `web_capability_api` using `gpt2api` strengths while keeping `sub2api` integration architecture. |
 | What have I learned? | See `findings.md`. |
