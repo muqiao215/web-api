@@ -199,6 +199,11 @@
 - Phase 5C (control-workbench narrow expansion — this session):
   - `apps/control-workbench/src/index.mjs` (updated — v2: sub2api fully wired, ops_doctor integration, error-state placeholders)
   - `apps/control-workbench/test/index.test.mjs` (updated — 9 new tests, 32 total: normalizeSub2apiHealth 3, normalizeOpsDoctor 6)
+- Phase 5D: GPT jobs history diagnostic classification (this session):
+  - Root cause: `jobs_json` WARN triggered by 2 historical failed image jobs (finished_at set, from 2026-04-19) even though they represent old timeouts, not current operational problems.
+  - Fix: `summarizeJobs()` now separates active (pending/running) from historical (completed) jobs. Health check only evaluates active jobs. Historical failures are reported separately in detail string without triggering WARN.
+  - Before: `jobs_json` WARN (2 failed > 3/2 threshold, all treated equally)
+  - After: `jobs_json` OK (active=0, historical=7, 2 historical failures visible in detail but do not affect health)
 - Deferred:
   - Billing, payment, SaaS user management.
 
@@ -229,6 +234,7 @@
 | Phase 5A diagnose.mjs | `packages/ops_doctor/test/diagnose.test.mjs` | All 7 pass | All 7 pass (exit 0, output_dir_writable, jobs_json, media_json, --jobs override, JSON-only, repo_root) | pass |
 | Phase 5B control-workbench | `apps/control-workbench/test/index.test.mjs` | All 23 pass | All 23 pass (normalizeGptHealth 6, normalizeCanvasHealth 7, buildSummary 10) | pass |
 | Phase 5C control-workbench v2 | `apps/control-workbench/test/index.test.mjs` | All 32 pass | All 32 pass (added 9: normalizeSub2apiHealth 3, normalizeOpsDoctor 6) | pass |
+| Phase 5D ops_doctor historical vs active | `packages/ops_doctor/test/diagnose.test.mjs` | All 11 pass | All 11 pass (4 new: historical failures OK, active running OK, active queued OK, mixed only active affects health) | pass |
 
 ## Error Log
 

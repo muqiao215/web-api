@@ -49,16 +49,39 @@ function summarizeJobs(data) {
   const jobs = data.jobs;
   const statuses = { queued: 0, running: 0, succeeded: 0, failed: 0 };
   const imageJobs = { total: 0, succeeded: 0, failed: 0, pending: 0 };
+
+  // Separate active (pending/running) from historical (completed) jobs
+  const active = { total: 0, imageJobs: { total: 0, failed: 0 } };
+  const historical = { total: 0, imageJobs: { total: 0, failed: 0 } };
+
   for (const job of jobs) {
     if (statuses[job.status] !== undefined) statuses[job.status]++;
-    if (job.type === "images.generations") {
+
+    const isActive = job.status === "queued" || job.status === "running";
+    const isImageJob = job.type === "images.generations";
+
+    if (isActive) {
+      active.total++;
+      if (isImageJob) {
+        active.imageJobs.total++;
+        if (job.status === "failed") active.imageJobs.failed++;
+      }
+    } else {
+      historical.total++;
+      if (isImageJob) {
+        historical.imageJobs.total++;
+        if (job.status === "failed") historical.imageJobs.failed++;
+      }
+    }
+
+    if (isImageJob) {
       imageJobs.total++;
       if (job.status === "succeeded") imageJobs.succeeded++;
       else if (job.status === "failed") imageJobs.failed++;
-      else if (job.status === "queued" || job.status === "running") imageJobs.pending++;
+      else if (isActive) imageJobs.pending++;
     }
   }
-  return { total: jobs.length, statuses, imageJobs };
+  return { total: jobs.length, statuses, imageJobs, active, historical };
 }
 
 function summarizeMedia(data) {
@@ -131,10 +154,20 @@ function runChecks(opts) {
   } else {
     const summary = summarizeJobs(jobsResult.data);
     if (summary) {
-      const detail = `total=${summary.total} image_jobs=${summary.imageJobs.total} succeeded=${summary.imageJobs.succeeded} failed=${summary.imageJobs.failed} pending=${summary.imageJobs.pending}`;
-      // Flag if there are many pending/running jobs
+      // Health check is based on ACTIVE jobs only (pending/running).
+      // Historical failures (completed with finished_at) do not trigger WARN
+      // as they represent past events, not current operational problems.
+      const activeDetail = `active=${summary.active.total} image_active=${summary.active.imageJobs.total} image_failed=${summary.active.imageJobs.failed}`;
+      const histDetail = `historical=${summary.historical.total} image_historical=${summary.historical.imageJobs.total} image_failed=${summary.historical.imageJobs.failed}`;
+      const detail = `total=${summary.total} ${activeDetail} ${histDetail}`;
+
+      // WARN conditions for active jobs only
       const status =
-        summary.imageJobs.pending > 5 ? "WARN" : summary.imageJobs.failed > summary.imageJobs.total / 2 ? "WARN" : "OK";
+        summary.active.imageJobs.failed > 0 && summary.active.imageJobs.total > 0
+          ? "WARN"
+          : summary.active.imageJobs.failed > summary.active.imageJobs.total / 2
+          ? "WARN"
+          : "OK";
       checks.push({ name: "jobs_json", status, detail: `${detail} (path=${opts.jobs})` });
     } else {
       checks.push({ name: "jobs_json", status: "WARN", detail: `unexpected jobs.json structure (path=${opts.jobs})` });

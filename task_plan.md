@@ -95,8 +95,9 @@ This plan is for architecture and implementation sequencing only. It does not re
 - [x] Add `packages/audit_log` — JSONL append-only audit logger aligned with `audit-event.schema.json`. *(Phase 5A)*
 - [x] Expand `apps/control-workbench` into a lightweight control surface for provider health, queues, artifacts, and audit logs. *(Phase 5B: skeleton + 23 tests)*
 - [x] Extend control-workbench to fully wire sub2api into providers+summary (default on), add ops_doctor diagnostic layer via subprocess. *(Phase 5C: v2 + 9 new tests)*
+- [x] Fix `diagnose.mjs` `jobs_json` check to distinguish active (pending/running) from historical (completed) failures — historical failures no longer trigger misleading WARN. *(Phase 5D: 4 new tests)*
 - [ ] Defer billing, payment, and public SaaS user management until task/artifact/account models are stable.
-- **Status:** partial — Phase 5A (ops_doctor + audit_log) and Phase 5B (control-workbench) complete; Phase 5C (control-workbench expansion) complete; billing/deferred items deferred.
+- **Status:** partial — Phase 5A (ops_doctor + audit_log) and Phase 5B (control-workbench) complete; Phase 5C (control-workbench expansion) complete; Phase 5D (GPT jobs history diagnostic) complete; billing/deferred items deferred.
 
 ### Phase 6: Verification & Cutover
 
