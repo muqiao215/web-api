@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.web-capability-api/schemas/account-pool.schema.json",
+  "title": "AccountPool",
+  "description": "Provider account/profile registry with lease state, capability flags, health, and cooldown tracking.",
+  "type": "object",
+  "required": [
+    "contract_version",
+    "provider",
+    "accounts"
+  ],
+  "properties": {
+    "contract_version": { "type": "string" },
+    "provider": { "type": "string" },
+    "pool_policy": {
+      "type": "object",
+      "properties": {
+        "max_concurrent_leases": { "type": "integer", "minimum": 1, "default": 1 },
+        "lease_ttl_seconds": { "type": "integer", "minimum": 1 },
+        "cooldown_seconds": { "type": "integer", "minimum": 0, "default": 0 },
+        "health_check_interval_seconds": { "type": "integer", "minimum": 30, "default": 60 },
+        "require_sub2api_smoke": { "type": "boolean", "default": true }
+      },
+      "additionalProperties": true
+    },
+    "accounts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "label"],
+        "properties": {
+          "id": { "type": "string" },
+          "label": { "type": "string" },
+          "enabled": { "type": "boolean", "default": true },
+          "priority": { "type": "integer", "minimum": 0, "default": 0 },
+          "caps": {
+            "type": "object",
+            "properties": {
+              "chat": { "type": "boolean" },
+              "images": { "type": "boolean" },
+              "image_edits": { "type": "boolean" },
+              "vision": { "type": "boolean" },
+              "streaming": { "type": "boolean" },
+              "research": { "type": "boolean" }
+            },
+            "additionalProperties": { "type": "boolean" }
+          },
+          "lease": {
+            "type": ["object", "null"],
+            "properties": {
+              "task_id": { "type": ["string", "null"] },
+              "leased_by": { "type": "string" },
+              "leased_at": { "type": "string", "format": "date-time" },
+              "expires_at": { "type": "string", "format": "date-time" }
+            },
+            "additionalProperties": true
+          },
+          "health": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": ["healthy", "degraded", "cooldown", "locked", "unavailable"]
+              },
+              "last_checked_at": { "type": "string", "format": "date-time" },
+              "direct_worker_ok": { "type": "boolean" },
+              "sub2api_smoke_ok": { "type": "boolean" },
+              "failure_count": { "type": "integer", "minimum": 0, "default": 0 },
+              "cooldown_until": { "anyOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }] },
+              "reason": { "type": "string" }
+            },
+            "additionalProperties": true
+          },
+          "usage": {
+            "type": "object",
+            "properties": {
+              "requests_count": { "type": "integer", "minimum": 0, "default": 0 },
+              "images_count": { "type": "integer", "minimum": 0, "default": 0 },
+              "last_used_at": { "anyOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }] }
+            },
+            "additionalProperties": true
+          },
+          "upstream": {
+            "type": "object",
+            "properties": {
+              "profile_id": { "type": "string" },
+              "user_data_dir": { "type": "string" },
+              "cdp_http": { "type": "string" }
+            },
+            "additionalProperties": true
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}

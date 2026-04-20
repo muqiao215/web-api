@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.web-capability-api/schemas/audit-event.schema.json",
+  "title": "AuditEvent",
+  "description": "Audit event for admin actions, provider selections, route decisions, prompt/source trace, and artifact writes across workers, bots, and admin surfaces.",
+  "type": "object",
+  "required": [
+    "contract_version",
+    "id",
+    "event_type",
+    "actor",
+    "timestamp"
+  ],
+  "properties": {
+    "contract_version": { "type": "string" },
+    "id": { "type": "string" },
+    "event_type": {
+      "type": "string",
+      "enum": [
+        "admin_action",
+        "provider_selection",
+        "route_decision",
+        "account_lease",
+        "account_release",
+        "proxy_binding",
+        "proxy_failure",
+        "task_submitted",
+        "task_completed",
+        "task_failed",
+        "artifact_written",
+        "health_check",
+        "config_change",
+        "unknown"
+      ]
+    },
+    "actor": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["system", "admin", "bot", "user", "worker", "scheduler", "unknown"]
+        },
+        "id": { "type": "string" },
+        "label": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "provider": { "type": ["string", "null"] },
+    "account_id": { "type": ["string", "null"] },
+    "proxy_id": { "type": ["string", "null"] },
+    "task_id": { "type": ["string", "null"] },
+    "artifact_id": { "type": ["string", "null"] },
+    "route": { "type": ["string", "null"] },
+    "success": { "type": ["boolean", "null"] },
+    "error": {
+      "type": ["object", "null"],
+      "properties": {
+        "code": { "type": "string" },
+        "message": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "duration_ms": { "type": ["integer", "null"], "minimum": 0 },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

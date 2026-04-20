@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.web-capability-api/schemas/queue-state.schema.json",
+  "title": "QueueState",
+  "description": "Async task queue state with lease semantics. Profile-bound workers use profile-scoped serial queues so the same browser identity cannot be mutated concurrently.",
+  "type": "object",
+  "required": [
+    "contract_version",
+    "provider",
+    "queues"
+  ],
+  "properties": {
+    "contract_version": { "type": "string" },
+    "provider": { "type": "string" },
+    "queues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["scope", "scope_id", "mode"],
+        "properties": {
+          "scope": {
+            "type": "string",
+            "enum": ["profile", "global"]
+          },
+          "scope_id": { "type": "string" },
+          "mode": {
+            "type": "string",
+            "enum": ["profile-serial", "global-serial", "upstream-managed", "none"]
+          },
+          "enabled": { "type": "boolean", "default": true },
+          "depth": {
+            "type": "object",
+            "properties": {
+              "pending": { "type": "integer", "minimum": 0, "default": 0 },
+              "running": { "type": "integer", "minimum": 0, "default": 0 },
+              "completed": { "type": "integer", "minimum": 0, "default": 0 },
+              "failed": { "type": "integer", "minimum": 0, "default": 0 }
+            }
+          },
+          "capacity": {
+            "type": ["object", "null"],
+            "properties": {
+              "max_pending": { "type": "integer", "minimum": 1 },
+              "max_concurrent": { "type": "integer", "minimum": 1, "default": 1 }
+            }
+          },
+          "leases": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "task_id": { "type": "string" },
+                "profile_lock": { "type": "string" },
+                "leased_by": { "type": "string" },
+                "leased_at": { "type": "string", "format": "date-time" },
+                "expires_at": { "type": "string", "format": "date-time" }
+              },
+              "additionalProperties": true
+            },
+            "default": []
+          },
+          "lock_policy": {
+            "type": "object",
+            "properties": {
+              "scope": { "type": "string", "enum": ["profile", "conversation", "global", "none"] },
+              "implementation": { "type": "string" },
+              "note": { "type": "string" }
+            },
+            "additionalProperties": true
+          },
+          "cooldown": {
+            "type": ["object", "null"],
+            "properties": {
+              "active": { "type": "boolean", "default": false },
+              "until": { "anyOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }] },
+              "reason": { "type": "string" }
+            },
+            "additionalProperties": true
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}

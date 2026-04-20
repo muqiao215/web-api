@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.web-capability-api/schemas/image-task.schema.json",
+  "title": "ImageTask",
+  "description": "Internal image task state machine covering GPT Image, Gemini Canvas, DeepSeek, Qwen, and future providers.",
+  "type": "object",
+  "required": [
+    "contract_version",
+    "id",
+    "provider",
+    "model",
+    "status",
+    "prompt",
+    "created_at",
+    "updated_at"
+  ],
+  "properties": {
+    "contract_version": { "type": "string" },
+    "id": { "type": "string" },
+    "provider": { "type": "string" },
+    "model": { "type": "string" },
+    "status": {
+      "type": "string",
+      "enum": ["queued", "running", "succeeded", "failed", "partial", "cancelled"]
+    },
+    "prompt": { "type": "string" },
+    "n": { "type": "integer", "minimum": 1, "default": 1 },
+    "size": { "type": "string" },
+    "quality": { "type": "string" },
+    "style": { "type": "string" },
+    "input_images": {
+      "type": "array",
+      "items": { "type": "string" },
+      "default": []
+    },
+    "outputs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["artifact_id", "url"],
+        "properties": {
+          "artifact_id": { "type": "string" },
+          "url": { "type": "string" },
+          "mime": { "type": "string" },
+          "width": { "type": "integer", "minimum": 0 },
+          "height": { "type": "integer", "minimum": 0 },
+          "sha256": { "type": "string" }
+        }
+      }
+    },
+    "attempts": { "type": "integer", "minimum": 0, "default": 0 },
+    "max_attempts": { "type": "integer", "minimum": 1, "default": 3 },
+    "account_id": { "type": ["string", "null"] },
+    "profile_lock": { "type": ["string", "null"] },
+    "proxy_id": { "type": ["string", "null"] },
+    "parent_task_id": { "type": ["string", "null"] },
+    "aggregate_task_id": { "type": ["string", "null"] },
+    "created_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": "string", "format": "date-time" },
+    "started_at": { "anyOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }] },
+    "completed_at": { "anyOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }] },
+    "error": {
+      "type": ["object", "null"],
+      "properties": {
+        "code": { "type": "string" },
+        "message": { "type": "string" },
+        "retriable": { "type": "boolean" }
+      },
+      "additionalProperties": true
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

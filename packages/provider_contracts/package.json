@@ -1,0 +1,9 @@
+{
+  "name": "@web-capability-api/provider-contracts",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "ajv": "^8.18.0",
+    "ajv-formats": "^3.0.1"
+  }
+}

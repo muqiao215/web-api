@@ -12,6 +12,11 @@
       "type": "string",
       "enum": ["browser-session", "local-api", "external-api", "shim", "consumer"]
     },
+    "health_tier": {
+      "type": "string",
+      "description": "Distinguishes provider registration stage: api_surface_aligned means the provider exposes the correct OpenAI-compatible surface but is not yet routed; routed means sub2api can forward to it; healthy means both direct worker and sub2api smoke checks pass.",
+      "enum": ["api_surface_aligned", "routed", "healthy"]
+    },
     "capabilities": {
       "type": "object",
       "properties": {

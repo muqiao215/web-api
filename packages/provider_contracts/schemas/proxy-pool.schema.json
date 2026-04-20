@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.web-capability-api/schemas/proxy-pool.schema.json",
+  "title": "ProxyPool",
+  "description": "Proxy metadata, health score, account binding, and failure tracking. Proxy pool is optional — not all providers require proxies.",
+  "type": "object",
+  "required": [
+    "contract_version",
+    "provider",
+    "proxies"
+  ],
+  "properties": {
+    "contract_version": { "type": "string" },
+    "provider": { "type": "string" },
+    "pool_policy": {
+      "type": "object",
+      "properties": {
+        "required_by_provider": { "type": "boolean", "default": false },
+        "health_check_interval_seconds": { "type": "integer", "minimum": 30, "default": 120 },
+        "failure_threshold": { "type": "integer", "minimum": 1, "default": 3 },
+        "cooldown_seconds": { "type": "integer", "minimum": 0, "default": 300 }
+      },
+      "additionalProperties": true
+    },
+    "proxies": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id"],
+        "properties": {
+          "id": { "type": "string" },
+          "enabled": { "type": "boolean", "default": true },
+          "url": { "type": "string" },
+          "protocol": {
+            "type": "string",
+            "enum": ["http", "https", "socks5", "http_connect"],
+            "default": "http"
+          },
+          "host": { "type": "string" },
+          "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+          "auth": {
+            "type": ["object", "null"],
+            "properties": {
+              "username": { "type": "string" },
+              "password": { "type": "string" }
+            },
+            "additionalProperties": false
+          },
+          "bound_account_ids": {
+            "type": "array",
+            "items": { "type": "string" },
+            "default": []
+          },
+          "health": {
+            "type": "object",
+            "properties": {
+              "score": { "type": "number", "minimum": 0, "maximum": 1, "default": 1.0 },
+              "last_checked_at": { "type": "string", "format": "date-time" },
+              "failure_count": { "type": "integer", "minimum": 0, "default": 0 },
+              "cooldown_until": { "anyOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }] },
+              "last_success_at": { "anyOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }] },
+              "last_failure_at": { "anyOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }] },
+              "status": {
+                "type": "string",
+                "enum": ["active", "degraded", "cooldown", "unavailable"]
+              }
+            },
+            "additionalProperties": true
+          },
+          "geolocation": {
+            "type": ["object", "null"],
+            "properties": {
+              "country": { "type": "string" },
+              "city": { "type": "string" },
+              "timezone": { "type": "string" }
+            },
+            "additionalProperties": true
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}
