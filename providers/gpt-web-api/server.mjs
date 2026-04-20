@@ -62,6 +62,8 @@ const browserRuntime = createBrowserRuntime({
   imagePageUrl: IMAGE_PAGE_URL,
   outputDir: OUTPUT_DIR,
   cdpHttpTimeoutMs: CDP_HTTP_TIMEOUT_MS,
+  getQueueStats: () => jobQueue.stats(),
+  getSessionLockCount: () => sessionLocks.size(),
 });
 
 const chatState = createChatStateService({
@@ -91,7 +93,9 @@ providerRouter.register(provider, { isDefault: true });
 const providerAdminService = createProviderAdminService({
   providerRouter,
   inspectBrowserReadiness: browserRuntime.inspectBrowserReadiness,
+  inspectRuntimeStatus: browserRuntime.inspectRuntimeStatus,
   getQueueDepth: () => jobQueue.list().filter((job) => job.status === "queued" || job.status === "running").length,
+  getQueueStats: () => jobQueue.stats(),
   getSessionLockCount: () => sessionLocks.size(),
   jobsPath: JOBS_PATH,
   sessionAffinityPath: SESSION_AFFINITY_PATH,

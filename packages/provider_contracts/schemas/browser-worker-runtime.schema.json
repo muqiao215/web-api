@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.web-capability-api/schemas/browser-worker-runtime.schema.json",
+  "title": "BrowserWorkerRuntime",
+  "allOf": [
+    {
+      "$ref": "runtime-health.schema.json"
+    },
+    {
+      "type": "object",
+      "required": ["logged_in", "cdp_ready", "queue", "profiles"],
+      "properties": {
+        "provider_type": { "const": "browser-session" },
+        "queue": {
+          "type": "object",
+          "properties": {
+            "mode": { "enum": ["profile-serial", "upstream-managed", "unknown"] }
+          }
+        },
+        "lock_policy": {
+          "type": "object",
+          "properties": {
+            "scope": { "enum": ["profile", "conversation"] }
+          }
+        }
+      }
+    }
+  ]
+}

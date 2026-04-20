@@ -22,10 +22,11 @@ export function createSystemRouteHandler({
         sendJson(res, 200, await providerAdminService.readiness());
       } catch (error) {
         const { body } = errorBody(error);
+        const health = await providerAdminService.health();
         sendJson(res, 503, {
           ok: false,
           service: "gpt_web_api",
-          provider_count: providerAdminService.health().provider_count,
+          provider_count: health.provider_count,
           browser: {
             ok: false,
             error: body.error.message,
@@ -36,7 +37,7 @@ export function createSystemRouteHandler({
     }
 
     if (req.method === "GET" && pathname === "/health") {
-      sendJson(res, 200, providerAdminService.health());
+      sendJson(res, 200, await providerAdminService.health());
       return true;
     }
 

@@ -1,14 +1,9 @@
-function queueRuntime(getQueueDepth, getSessionLockCount) {
-  return {
-    queue_depth: getQueueDepth(),
-    session_locks: getSessionLockCount(),
-  };
-}
-
 export function createProviderAdminService({
   providerRouter,
   inspectBrowserReadiness,
+  inspectRuntimeStatus,
   getQueueDepth,
+  getQueueStats = () => ({ pending: null, running: null, total: null }),
   getSessionLockCount,
   jobsPath,
   sessionAffinityPath,
@@ -17,6 +12,17 @@ export function createProviderAdminService({
   uploadDir,
   cdpHttp,
 }) {
+  function queueMetrics() {
+    const stats = getQueueStats() || {};
+    return {
+      queue_depth: getQueueDepth(),
+      session_locks: getSessionLockCount(),
+      pending: Number.isInteger(stats.pending) ? stats.pending : null,
+      running: Number.isInteger(stats.running) ? stats.running : null,
+      total: Number.isInteger(stats.total) ? stats.total : null,
+    };
+  }
+
   function getModel(modelId) {
     const model = providerRouter.getModel(modelId);
     if (!model) return null;
@@ -41,12 +47,14 @@ export function createProviderAdminService({
     const provider = providerRouter.getProvider(providerId);
     const descriptor = provider.descriptor();
     const health = await providerHealth(provider);
+    const runtimeContract = typeof inspectRuntimeStatus === "function" ? await inspectRuntimeStatus() : null;
     return {
       ...descriptor,
       models: provider.models().map((model) => model.id),
       model_details: provider.models(),
       health,
-      runtime: queueRuntime(getQueueDepth, getSessionLockCount),
+      runtime: queueMetrics(),
+      runtime_contract: runtimeContract,
       paths: {
         jobs: jobsPath,
         session_affinity: sessionAffinityPath,
@@ -69,6 +77,7 @@ export function createProviderAdminService({
 
   async function readiness() {
     const browser = await inspectBrowserReadiness();
+    const runtimeContract = typeof inspectRuntimeStatus === "function" ? await inspectRuntimeStatus() : null;
     return {
       ok: true,
       service: "gpt_web_api",
@@ -76,10 +85,12 @@ export function createProviderAdminService({
       queue_depth: getQueueDepth(),
       session_locks: getSessionLockCount(),
       browser,
+      runtime_contract: runtimeContract,
     };
   }
 
-  function health() {
+  async function health() {
+    const runtimeContract = typeof inspectRuntimeStatus === "function" ? await inspectRuntimeStatus() : null;
     return {
       ok: true,
       service: "gpt_web_api",
@@ -98,6 +109,7 @@ export function createProviderAdminService({
       image_output_dir: outputDir,
       upload_dir: uploadDir,
       media_index_path: mediaPath,
+      runtime_contract: runtimeContract,
     };
   }
 

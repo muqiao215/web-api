@@ -21,6 +21,29 @@ function isImageFile(file) {
   return /^image\//i.test(file.mime_type || "") || /\.(png|jpe?g|webp|gif)$/i.test(file.filename || file.path || "");
 }
 
+function detectLoginFromPages(pages) {
+  const pageSummaries = pages
+    .filter((page) => page.type === "page")
+    .map((page) => ({
+      url: page.url || "",
+      title: page.title || "",
+    }));
+  const signInPage = pageSummaries.find((page) => {
+    const text = `${page.url} ${page.title}`;
+    const decodedUrl = decodeURIComponent(page.url);
+    return (
+      /chatgpt\.com\/auth|chatgpt\.com\/login|chatgpt\.com\/signin|chatgpt\.com\/signup/i.test(text) ||
+      (/accounts\.google\.com/i.test(page.url) && /chatgpt\.com/i.test(decodedUrl))
+    );
+  });
+  if (signInPage) return false;
+  const chatgptPage = pageSummaries.find((page) =>
+    /^https:\/\/chatgpt\.com\//.test(page.url) && !/login|sign in|sign up/i.test(page.title)
+  );
+  if (chatgptPage) return true;
+  return null;
+}
+
 class CdpPage {
   constructor(target) {
     this.target = target;
@@ -112,6 +135,8 @@ export function createBrowserRuntime({
   imagePageUrl,
   outputDir,
   cdpHttpTimeoutMs = 15000,
+  getQueueStats = () => ({ pending: null, running: null, total: null }),
+  getSessionLockCount = () => null,
 }) {
   async function fetchJson(url, init = {}) {
     const response = await fetch(url, {
@@ -676,11 +701,137 @@ export function createBrowserRuntime({
     };
   }
 
+  async function inspectRuntimeStatus() {
+    const checkedAt = new Date().toISOString();
+    const queueStats = getQueueStats() || {};
+    const lockCount = getSessionLockCount();
+    const queue = {
+      supported: true,
+      mode: "profile-serial",
+      pending: Number.isInteger(queueStats.pending) ? queueStats.pending : null,
+      running: Number.isInteger(queueStats.running) ? queueStats.running : null,
+      locks_active: Number.isInteger(lockCount) ? lockCount : null,
+      total: Number.isInteger(queueStats.total) ? queueStats.total : null,
+    };
+
+    try {
+      const version = await fetchJson(`${cdpHttp}/json/version`);
+      const pages = await fetchJson(`${cdpHttp}/json/list`);
+      const loggedIn = detectLoginFromPages(pages);
+      const status = loggedIn === false ? "blocked" : loggedIn === null ? "degraded" : "ok";
+      const blockedBy = loggedIn === false ? "login_required" : loggedIn === null ? "unknown" : "none";
+
+      return {
+        contract_version: "wcapi.browser_worker_runtime.v1",
+        provider_id: "chatgpt-web",
+        provider_type: "browser-session",
+        checked_at: checkedAt,
+        status,
+        service_alive: true,
+        logged_in: loggedIn,
+        cdp_ready: true,
+        browser_connected: true,
+        browserConnected: true,
+        blocked_by: blockedBy,
+        queue,
+        lock_policy: {
+          scope: "profile",
+          implementation: "JobQueue + SessionLockRegistry",
+          note: "All provider operations are serialized through the single browser profile; conversation locks are nested inside chat operations.",
+        },
+        profiles: [
+          {
+            id: "default",
+            label: "ChatGPT Web default browser profile",
+            cdp_http: cdpHttp,
+            cdp_ready: true,
+            logged_in: loggedIn,
+            browser_connected: true,
+            queue,
+            details: {
+              browser: version.Browser || "",
+              websocket_debugger_url: version.webSocketDebuggerUrl || "",
+              pages: pages
+                .filter((page) => page.type === "page")
+                .map((page) => ({
+                  id: page.id,
+                  title: page.title || "",
+                  url: page.url || "",
+                }))
+                .slice(0, 20),
+            },
+          },
+        ],
+        capabilities: {
+          chat: true,
+          streaming: true,
+          images: true,
+          files: true,
+          vision: true,
+          image_edits: false,
+        },
+        details: {
+          cdp_http: cdpHttp,
+          chat_page_url: chatPageUrl,
+          image_page_url: imagePageUrl,
+          browser: version.Browser || "",
+          total_pages: pages.length,
+        },
+      };
+    } catch (error) {
+      return {
+        contract_version: "wcapi.browser_worker_runtime.v1",
+        provider_id: "chatgpt-web",
+        provider_type: "browser-session",
+        checked_at: checkedAt,
+        status: "error",
+        service_alive: true,
+        logged_in: null,
+        cdp_ready: false,
+        browser_connected: false,
+        browserConnected: false,
+        blocked_by: "browser_session",
+        queue,
+        lock_policy: {
+          scope: "profile",
+          implementation: "JobQueue + SessionLockRegistry",
+        },
+        profiles: [
+          {
+            id: "default",
+            label: "ChatGPT Web default browser profile",
+            cdp_http: cdpHttp,
+            cdp_ready: false,
+            logged_in: null,
+            browser_connected: false,
+            queue,
+            details: {
+              error: String(error?.message || error),
+            },
+          },
+        ],
+        capabilities: {
+          chat: true,
+          streaming: true,
+          images: true,
+          files: true,
+          vision: true,
+          image_edits: false,
+        },
+        details: {
+          cdp_http: cdpHttp,
+          error: String(error?.message || error),
+        },
+      };
+    }
+  }
+
   return {
     chatViaBrowser,
     streamChatViaBrowser,
     generateImage,
     prepareImageThinkingMode,
     inspectBrowserReadiness,
+    inspectRuntimeStatus,
   };
 }

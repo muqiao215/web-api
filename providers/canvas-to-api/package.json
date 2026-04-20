@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "check": "echo migrate or wrap /root/.ductor/workspace/CanvasToAPI here later"
+    "check": "echo migrate or wrap /root/.ductor/workspace/CanvasToAPI here later",
+    "runtime:status": "node runtime_status.mjs"
   }
 }

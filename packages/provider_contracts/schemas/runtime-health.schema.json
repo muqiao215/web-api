@@ -3,17 +3,68 @@
   "$id": "https://local.web-capability-api/schemas/runtime-health.schema.json",
   "title": "RuntimeHealth",
   "type": "object",
-  "required": ["status"],
+  "required": ["contract_version", "provider_id", "status", "service_alive"],
   "properties": {
+    "contract_version": { "type": "string" },
+    "provider_id": { "type": "string" },
+    "provider_type": {
+      "type": "string",
+      "enum": ["browser-session", "local-api", "external-api", "shim", "consumer"]
+    },
+    "checked_at": { "type": "string", "format": "date-time" },
     "status": {
       "type": "string",
       "enum": ["ok", "degraded", "blocked", "error"]
     },
     "service_alive": { "type": "boolean" },
+    "logged_in": { "type": ["boolean", "null"] },
+    "cdp_ready": { "type": ["boolean", "null"] },
     "browser_connected": { "type": "boolean" },
     "blocked_by": {
       "type": "string",
       "enum": ["none", "browser_session", "login_required", "rate_limit", "upstream_unavailable", "auth", "unknown"]
+    },
+    "queue": {
+      "type": "object",
+      "properties": {
+        "supported": { "type": "boolean" },
+        "mode": {
+          "type": "string",
+          "enum": ["profile-serial", "global-serial", "upstream-managed", "none", "unknown"]
+        },
+        "pending": { "type": ["integer", "null"], "minimum": 0 },
+        "running": { "type": ["integer", "null"], "minimum": 0 },
+        "locks_active": { "type": ["integer", "null"], "minimum": 0 }
+      },
+      "additionalProperties": true
+    },
+    "lock_policy": {
+      "type": "object",
+      "properties": {
+        "scope": { "type": "string", "enum": ["profile", "conversation", "global", "none"] },
+        "implementation": { "type": "string" },
+        "note": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "profiles": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id"],
+        "properties": {
+          "id": { "type": "string" },
+          "label": { "type": "string" },
+          "user_data_dir": { "type": "string" },
+          "cdp_http": { "type": "string" },
+          "cdp_ready": { "type": ["boolean", "null"] },
+          "logged_in": { "type": ["boolean", "null"] },
+          "browser_connected": { "type": ["boolean", "null"] },
+          "queue": { "type": "object", "additionalProperties": true },
+          "details": { "type": "object", "additionalProperties": true }
+        },
+        "additionalProperties": true
+      }
     },
     "capabilities": {
       "type": "object",

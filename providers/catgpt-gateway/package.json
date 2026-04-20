@@ -1,0 +1,8 @@
+{
+  "name": "@web-capability-api/catgpt-gateway",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "echo wrapper target for vendor/CatGPT-Gateway"
+  }
+}

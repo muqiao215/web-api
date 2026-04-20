@@ -1,0 +1,15 @@
+[Unit]
+Description=GenAPI provider - CatGPT Gateway
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/root/.ductor/workspace/vendor/CatGPT-Gateway
+EnvironmentFile=-/root/.ductor/.env
+ExecStart=/usr/bin/python3 -m src.api.server
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

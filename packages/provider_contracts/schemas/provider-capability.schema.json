@@ -3,20 +3,44 @@
   "$id": "https://local.web-capability-api/schemas/provider-capability.schema.json",
   "title": "ProviderCapability",
   "type": "object",
-  "required": ["id", "type", "capabilities", "models"],
+  "required": ["contract_version", "id", "type", "capabilities", "models"],
   "properties": {
+    "contract_version": { "type": "string" },
     "id": { "type": "string" },
+    "name": { "type": "string" },
     "type": {
       "type": "string",
       "enum": ["browser-session", "local-api", "external-api", "shim", "consumer"]
     },
     "capabilities": {
       "type": "object",
+      "properties": {
+        "chat": { "type": "boolean" },
+        "streaming": { "type": "boolean" },
+        "images": { "type": "boolean" },
+        "files": { "type": "boolean" },
+        "vision": { "type": "boolean" },
+        "image_edits": { "type": "boolean" },
+        "research": { "type": "boolean" }
+      },
       "additionalProperties": { "type": "boolean" }
     },
     "models": {
       "type": "array",
       "items": { "type": "string" }
+    },
+    "runtime_contract": {
+      "type": "object",
+      "properties": {
+        "status_schema": { "type": "string" },
+        "artifact_schema": { "type": "string" },
+        "queue_scope": { "type": "string", "enum": ["profile", "global", "none"] }
+      },
+      "additionalProperties": true
+    },
+    "transport": {
+      "type": "object",
+      "additionalProperties": true
     },
     "upstream": {
       "type": "object",

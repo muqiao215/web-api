@@ -72,6 +72,26 @@ export class JobQueue {
     return [...this.jobs.values()].map((job) => this.serialize(job)).reverse();
   }
 
+  stats() {
+    const counts = {
+      total: this.jobs.size,
+      pending: 0,
+      running: 0,
+      succeeded: 0,
+      failed: 0,
+    };
+    for (const job of this.jobs.values()) {
+      if (job.status === "queued") {
+        counts.pending += 1;
+        continue;
+      }
+      if (Object.hasOwn(counts, job.status)) {
+        counts[job.status] += 1;
+      }
+    }
+    return counts;
+  }
+
   async wait(id) {
     const job = this.jobs.get(id);
     if (!job) throw new Error(`Unknown job_id: ${id}`);

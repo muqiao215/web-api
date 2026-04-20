@@ -4,7 +4,9 @@
   "type": "module",
   "workspaces": [
     "apps/control-workbench",
+    "packages/provider_artifacts",
     "providers/gpt-web-api",
+    "providers/catgpt-gateway",
     "providers/canvas-to-api",
     "providers/qwen2api/frontend",
     "shims/chat-responses",

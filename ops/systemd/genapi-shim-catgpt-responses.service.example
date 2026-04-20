@@ -1,0 +1,18 @@
+[Unit]
+Description=GenAPI shim - CatGPT chat-completions to Responses
+After=network-online.target genapi-provider-catgpt.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/root/.ductor/workspace/web_capability_api/shims/chat-responses
+Environment=CHAT_RESPONSES_HOST=127.0.0.1
+Environment=CHAT_RESPONSES_PORT=5262
+Environment=CHAT_RESPONSES_UPSTREAM=http://127.0.0.1:8000
+Environment=CHAT_RESPONSES_NAME=catgpt-responses
+ExecStart=/usr/local/bin/node chat_responses_shim.mjs
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

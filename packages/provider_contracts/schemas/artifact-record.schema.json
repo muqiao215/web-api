@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.web-capability-api/schemas/artifact-record.schema.json",
+  "title": "ArtifactRecord",
+  "type": "object",
+  "required": [
+    "contract_version",
+    "id",
+    "object",
+    "provider",
+    "kind",
+    "model",
+    "created_at",
+    "local_path",
+    "metadata"
+  ],
+  "properties": {
+    "contract_version": { "type": "string" },
+    "id": { "type": "string" },
+    "object": { "type": "string", "const": "artifact" },
+    "provider": { "type": "string" },
+    "kind": { "type": "string", "enum": ["image", "audio", "video", "document", "binary", "unknown"] },
+    "model": { "type": "string" },
+    "prompt": { "type": "string" },
+    "mime_type": { "type": "string" },
+    "created_at": { "type": "integer", "minimum": 0 },
+    "local_path": { "type": "string" },
+    "url": { "type": "string" },
+    "source_url": { "type": "string" },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "provider_profile_id": { "type": "string" },
+        "provider_profile_label": { "type": "string" },
+        "conversation_id": { "type": "string" },
+        "conversation_url": { "type": "string" },
+        "job_id": { "type": "string" }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

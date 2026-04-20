@@ -68,6 +68,29 @@ test("JobQueue persists completed job records", async () => {
   assert.deepEqual(restored.get(job.id).result, { ok: true });
 });
 
+test("JobQueue exposes queue statistics", async () => {
+  const queue = new JobQueue({ idPrefix: "statsjob" });
+
+  const first = queue.enqueue("first", async () => {
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    return "first";
+  });
+  const second = queue.enqueue("second", async () => "second");
+
+  const initial = queue.stats();
+  assert.equal(initial.pending + initial.running, 2);
+  assert.equal(initial.total, 2);
+
+  await queue.wait(first.id);
+  await queue.wait(second.id);
+
+  const settled = queue.stats();
+  assert.equal(settled.pending, 0);
+  assert.equal(settled.running, 0);
+  assert.equal(settled.total, 2);
+  assert.equal(settled.succeeded, 2);
+});
+
 test("MediaStore persists generated media records", async () => {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "gpt-web-api-media-"));
   const store = new MediaStore({ dataDir: dir, publicBaseUrl: "http://127.0.0.1:4242" });
@@ -82,9 +105,11 @@ test("MediaStore persists generated media records", async () => {
     metadata: { conversation_url: "https://chatgpt.com/c/test" },
   });
 
-  assert.equal(record.object, "media");
+  assert.equal(record.object, "artifact");
+  assert.equal(record.contract_version, "wcapi.artifact.v1");
   assert.equal(record.provider, "chatgpt-web");
   assert.equal(record.kind, "image");
+  assert.equal(record.local_path, path.join(dir, "generated", "apple.png"));
   assert.equal(record.url, "http://127.0.0.1:4242/generated/apple.png");
 
   const listed = await store.list();
