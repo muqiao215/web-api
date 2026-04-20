@@ -33,6 +33,83 @@
       "original_author": "MANISH1027512",
       "notes": "Cleaned social noise and repetitive quality padding while preserving the scene design.",
       "prompt": "Dark mysterious Chinese fantasy fused with eerie classical aesthetics, Journey to the West background, Shituoling, a vast infernal court of thousands of demons and strange beasts. Near-ground low-angle cinematic shot with a long telephoto feel, strong oppressive shadows, monumental scale. On the left giant throne sits the Elephant King in heavy ornate armor, demonic yet regal; on the center giant throne sits the Lion King in layered battle armor, the dominant ruler of the scene; on the right giant throne sits the Roc King in imposing feathered armor, predatory and divine. In the foreground a tiny Sun Wukong is seen from behind, walking forward with the golden cudgel resting across his shoulder, armored for battle, advancing alone toward the three kings. Emphasize correct perspective, dominant silhouette lines, monumental throne geometry, dense demon-court detail, Chinese grotesque myth atmosphere, blackened gold, ash gray, blood red accents, multi-layer rendering feel, superb sculptural detail, extreme texture detail, ultra-detailed armor engraving, cinematic contrast, vertical 9:16 composition."
+    },
+    {
+      "source_id": "manual-surveillance-aesthetic-classic-cctv",
+      "title": "Surveillance Aesthetic - Classic CCTV",
+      "quality_tier": "high",
+      "platform_tags": ["gpt-image", "surveillance-aesthetic", "cinematic"],
+      "model_tags": ["gpt-image-2", "gpt-image"],
+      "category_tags": ["manual-curated", "algorithmic-gaze", "cctv", "surveillance"],
+      "original_author": "神奇小喷菇AIGC",
+      "notes": "Extracted via Jina from https://x.com/i/status/2045802847573520723; normalized social noise only.",
+      "prompt": "CCTV security footage of a narrow apartment hallway at night, one person carrying a bag walking past the camera, low resolution, grainy surveillance quality, slight fisheye distortion, cold desaturated green-gray tint, subtle scan lines and compression artifacts, timestamp overlay in the lower corner, camera ID in the upper left, red REC indicator in the upper right, harsh fluorescent ceiling light, dark vignette edges, fixed ceiling-mounted angle, impersonal voyeuristic mood, monospace overlay text."
+    },
+    {
+      "source_id": "manual-surveillance-aesthetic-object-detection",
+      "title": "Surveillance Aesthetic - Object Detection Visualization",
+      "quality_tier": "high",
+      "platform_tags": ["gpt-image", "surveillance-aesthetic", "computer-vision"],
+      "model_tags": ["gpt-image-2", "gpt-image"],
+      "category_tags": ["manual-curated", "algorithmic-gaze", "object-detection", "urban"],
+      "original_author": "神奇小喷菇AIGC",
+      "notes": "Extracted via Jina from https://x.com/i/status/2045802847573520723; normalized social noise only.",
+      "prompt": "AI computer vision object detection view of a busy city intersection in light rain, multiple thin bounding boxes around pedestrians and vehicles, labels with class names and confidence scores, green and cyan wireframe rectangles, clean monospace annotations, technical HUD overlay with frame counter, fps and codec text, timestamp in the corner, slight digital processing look, neon reflections on wet asphalt, clinical algorithmic gaze."
+    },
+    {
+      "source_id": "manual-surveillance-aesthetic-night-vision",
+      "title": "Surveillance Aesthetic - Night Vision",
+      "quality_tier": "high",
+      "platform_tags": ["gpt-image", "surveillance-aesthetic", "night-vision"],
+      "model_tags": ["gpt-image-2", "gpt-image"],
+      "category_tags": ["manual-curated", "algorithmic-gaze", "night-vision", "security"],
+      "original_author": "神奇小喷菇AIGC",
+      "notes": "Extracted via Jina from https://x.com/i/status/2045802847573520723; normalized social noise only.",
+      "prompt": "Night vision camera view of a quiet backyard after midnight, one person near a fence and a dog moving through the grass, monochrome green tint, heavy ISO noise and grain, infrared glow on subjects, green phosphor display aesthetic, bright highlights blooming into halos, military surveillance feel, vignette at the edges, faint scan lines, timestamp and night-vision camera label in monospace text."
+    },
+    {
+      "source_id": "manual-surveillance-aesthetic-thermal-flir",
+      "title": "Surveillance Aesthetic - Thermal FLIR",
+      "quality_tier": "high",
+      "platform_tags": ["gpt-image", "surveillance-aesthetic", "thermal-imaging"],
+      "model_tags": ["gpt-image-2", "gpt-image"],
+      "category_tags": ["manual-curated", "algorithmic-gaze", "thermal", "flir"],
+      "original_author": "神奇小喷菇AIGC",
+      "notes": "Extracted via Jina from https://x.com/i/status/2045802847573520723; normalized social noise only.",
+      "prompt": "Thermal infrared camera view of a subway platform, several human bodies glowing in red, orange and yellow against a blue-purple cold background, FLIR false-color heat map style, temperature scale bar on the side, low-resolution blocky pixels, heat signatures radiating from warm objects, technical readout showing max and min temperatures, timestamp and thermal device label in monospace text."
+    },
+    {
+      "source_id": "manual-surveillance-aesthetic-drone-uav",
+      "title": "Surveillance Aesthetic - Drone UAV",
+      "quality_tier": "high",
+      "platform_tags": ["gpt-image", "surveillance-aesthetic", "drone-view"],
+      "model_tags": ["gpt-image-2", "gpt-image"],
+      "category_tags": ["manual-curated", "algorithmic-gaze", "drone", "uav"],
+      "original_author": "神奇小喷菇AIGC",
+      "notes": "Extracted via Jina from https://x.com/i/status/2045802847573520723; normalized social noise only.",
+      "prompt": "Aerial drone surveillance footage of a rooftop parking lot at dusk, top-down bird's-eye view, one moving vehicle locked with a square tracking bracket and central crosshair, grayscale image with a slight blue tint, GPS coordinate overlay, altitude and speed readout, HUD text such as TRACKING and TARGET ACQUIRED, subtle atmospheric haze, vignette edges, timestamp in the corner."
+    },
+    {
+      "source_id": "manual-surveillance-aesthetic-facial-recognition",
+      "title": "Surveillance Aesthetic - Facial Recognition Analysis",
+      "quality_tier": "high",
+      "platform_tags": ["gpt-image", "surveillance-aesthetic", "facial-recognition"],
+      "model_tags": ["gpt-image-2", "gpt-image"],
+      "category_tags": ["manual-curated", "algorithmic-gaze", "biometrics", "facial-recognition"],
+      "original_author": "神奇小喷菇AIGC",
+      "notes": "Extracted via Jina from https://x.com/i/status/2045802847573520723; normalized social noise only.",
+      "prompt": "Facial recognition system analysis view of a person sitting by the window in a coffee shop, geometric wireframe mesh mapped to facial landmarks, green dotted lines connecting keypoints, a face bounding box with high confidence score, identity matching panel on the side with match score, subject ID, age and emotion labels, dark UI overlay with blue-green accents, slight scan lines and noise, timestamp and camera ID in monospace text, impersonal surveillance aesthetic."
+    },
+    {
+      "source_id": "manual-surveillance-aesthetic-data-annotation",
+      "title": "Surveillance Aesthetic - Data Annotation",
+      "quality_tier": "high",
+      "platform_tags": ["gpt-image", "surveillance-aesthetic", "editorial"],
+      "model_tags": ["gpt-image-2", "gpt-image"],
+      "category_tags": ["manual-curated", "algorithmic-gaze", "data-annotation", "artistic"],
+      "original_author": "神奇小喷菇AIGC",
+      "notes": "Extracted via Jina from https://x.com/i/status/2045802847573520723; normalized social noise only.",
+      "prompt": "Beautiful golden-hour street portrait of a person walking past a flower shop, elegant data annotation overlay with minimalist thin white bounding boxes around the face and hands, a small box around a nearby bicycle with a confidence label, clean sans-serif captions, subtle cool desaturated grading, artistic surveillance aesthetic, tension between beauty and clinical annotation, high-quality photographic base image, small timestamp in the corner."
     }
   ]
 }
