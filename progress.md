@@ -91,7 +91,7 @@
 | File | Finding | Action |
 |------|---------|--------|
 | `jobs.json` | `result[]` items have `output_path`/`mime_type` but no `artifact_id`, `width`, `height`, `sha256` | Closed: `generateImage()` in `browser_runtime.mjs` now computes and returns these fields; existing records migrated via `migrate_jobs_image_results.mjs` |
-| `media.json` | Uses legacy `object: "media"` and `output_path` — pre-ArtifactRecord schema | Normalized to ArtifactRecord format in validate_runtime.mjs; re-write via MediaStore in Phase 4+ |
+| `media.json` | Uses legacy `object: "media"` and `output_path` — pre-ArtifactRecord schema | Closed: `migrate_media_legacy_records.mjs` converts legacy records to artifact format (object:"artifact", local_path, contract_version, sha256/width/height computed from file). MediaStore already writes correct format for new records. |
 | `provider_admin_service.mjs` | Missing `account_id`, `profile_lock`, `lease` fields in admin health output | Added as nullable (null) with Phase 4 comment |
 
 ### Phase 3 Write-Path Fix (Critical Follow-up)
@@ -109,6 +109,23 @@
   - `providers/gpt-web-api/data/jobs.json` (migrated in place — 1 image-gen job enriched with artifact_id/sha256/width/height)
   - `packages/provider_contracts/migrate_jobs_image_results.mjs` (new — idempotent migration script)
   - `task_plan.md` (Phase 3 write-path items marked complete)
+  - `progress.md` (this entry)
+
+### Phase 3 Media Historical Migration
+
+- **Status:** complete
+- **Completed:** 2026-04-20
+- Actions taken:
+  - Created `packages/provider_contracts/migrate_media_legacy_records.mjs` — idempotent migration for legacy `media.json` records.
+  - Converts `object:"media"` → `object:"artifact"`, `output_path` → `local_path`, adds `contract_version: "wcapi.artifact.v1"`.
+  - Computes `sha256`, `width`, `height` from actual image file on disk (same PNG/JPEG header parsing helpers as jobs migration).
+  - Infers `mime_type` from file extension (`.png`→`image/png`, `.jpg`/`.jpeg`→`image/jpeg`, etc.).
+  - Keeps original record ID to avoid ID churn; second run skips already-migrated records.
+  - Verified: `validate_runtime.mjs` exits 0 (artifact-record schema: 1 valid, 0 invalid); `diagnose.mjs` reports `total=1 artifacts=1 legacy=0`.
+- Files created/modified:
+  - `packages/provider_contracts/migrate_media_legacy_records.mjs` (new — idempotent migration script)
+  - `providers/gpt-web-api/data/media.json` (migrated in place — 1 legacy record converted to artifact format with sha256/width/height in metadata)
+  - `task_plan.md` (Phase 3 media migration item marked complete)
   - `progress.md` (this entry)
 
 ### Phase 4: Pooling & Scheduling Layer
@@ -193,6 +210,7 @@
 | Phase 3 admin health | `providers/gpt-web-api/test/provider_admin_service.test.mjs` | All 4 pass (including pool integration test) | All 4 pass | pass |
 | Phase 3 runtime validation | `packages/provider_contracts/validate_runtime.mjs` | Exit 0 (all valid) | Exit 0 with all 3 image-gen jobs fully validated (write-path fix complete) | pass |
 | Phase 3 migration script | `packages/provider_contracts/migrate_jobs_image_results.mjs` | Idempotent; second run "No migration needed" | Ran twice — second run exits 0 with "No migration needed" | pass |
+| Phase 3 media migration | `packages/provider_contracts/migrate_media_legacy_records.mjs` | Migrate 1 legacy record; validate_runtime.mjs exit 0; diagnose.mjs reports legacy=0 | Migrated 1 record (object:"media"→"artifact", sha256/width/height computed); validate_runtime.mjs exit 0; diagnose.mjs: total=1 artifacts=1 legacy=0 | pass |
 | Phase 4 provider_pool | `packages/provider_pool/test/index.test.mjs` | All 13 pass | All 13 pass | pass |
 | Phase 4 proxy_pool | `packages/proxy_pool/test/index.test.mjs` | All 8 pass | All 8 pass | pass |
 | Phase 4 job_queue | `packages/job_queue/test/index.test.mjs` | All 11 pass | All 11 pass | pass |

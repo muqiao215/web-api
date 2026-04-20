@@ -72,7 +72,8 @@ This plan is for architecture and implementation sequencing only. It does not re
 - [x] Close GPT provider write path: `generateImage()` in `browser_runtime.mjs` now returns `artifact_id`, `width`, `height`, `sha256` — aligned with image-task.outputs schema.
 - [x] Migrate existing `jobs.json` historical records via `migrate_jobs_image_results.mjs` (deterministic artifact_id, SHA-256 computed from file, PNG/JPEG dimensions parsed from file header).
 - [x] `validate_runtime.mjs` now exits 0 with all image-gen jobs fully validated against image-task schema.
-- [ ] Align `providers/gpt-web-api/data/media.json` write path to full ArtifactRecord schema (Phase 4+).
+- [x] Migrate existing `media.json` historical records via `migrate_media_legacy_records.mjs` (converts `object:"media"`→`"artifact"`, `output_path`→`local_path`, computes sha256/width/height from file, infers mime_type from extension; idempotent).
+- [ ] MediaStore (`providers/gpt-web-api/lib/media_store.mjs`) already writes new records in correct artifact format — no write-path change needed.
 - [ ] Add the same queue/profile-lock vocabulary to Gemini Canvas worker docs and future runtime wrappers.
 - [ ] Keep provider-specific implementation details behind adapters.
 - **Status:** complete
