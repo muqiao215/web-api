@@ -6,7 +6,7 @@ Improve `web_capability_api` by absorbing the useful productized runtime pattern
 
 ## Current Phase
 
-Phase 4
+Phase 5E
 
 ## Scope
 
@@ -96,8 +96,9 @@ This plan is for architecture and implementation sequencing only. It does not re
 - [x] Expand `apps/control-workbench` into a lightweight control surface for provider health, queues, artifacts, and audit logs. *(Phase 5B: skeleton + 23 tests)*
 - [x] Extend control-workbench to fully wire sub2api into providers+summary (default on), add ops_doctor diagnostic layer via subprocess. *(Phase 5C: v2 + 9 new tests)*
 - [x] Fix `diagnose.mjs` `jobs_json` check to distinguish active (pending/running) from historical (completed) failures — historical failures no longer trigger misleading WARN. *(Phase 5D: 4 new tests)*
+- [x] Enrich control-workbench normalizers: GPT now preserves `runtime_contract` fields (service_alive, logged_in, cdp_ready, blocked_by, capabilities), `providers[]` with capabilities/models, and file paths; canvas gains `runtime_status.mjs` subprocess integration (same ops_doctor pattern) for rich profile+queue data; canvas thin /health auto-detected and handled gracefully. *(Phase 5E: read-only enrichment + 6 new tests, 38 total)*
 - [ ] Defer billing, payment, and public SaaS user management until task/artifact/account models are stable.
-- **Status:** partial — Phase 5A (ops_doctor + audit_log) and Phase 5B (control-workbench) complete; Phase 5C (control-workbench expansion) complete; Phase 5D (GPT jobs history diagnostic) complete; billing/deferred items deferred.
+- **Status:** partial — Phase 5A (ops_doctor + audit_log) and Phase 5B (control-workbench) complete; Phase 5C (control-workbench v2) complete; Phase 5D (diagnose.mjs jobs history) complete; Phase 5E (control-workbench normalizer enrichment) complete; billing/deferred items deferred.
 
 ### Phase 6: Verification & Cutover
 

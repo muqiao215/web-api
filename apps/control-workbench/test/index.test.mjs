@@ -76,6 +76,86 @@ test("normalizeGptHealth attaches proxy_pool_summary when present", () => {
   assert.deepEqual(result.proxyPool, proxySummary);
 });
 
+// ─── normalizeGptHealth runtime_contract enrichment ────────────────────────────
+
+test("normalizeGptHealth preserves runtime_contract service_alive/logged_in/cdp_ready/blocked_by", () => {
+  const input = {
+    ok: true,
+    service_alive: false,
+    runtime_contract: {
+      service_alive: false,
+      logged_in: true,
+      cdp_ready: true,
+      browser_connected: true,
+      blocked_by: "login_required",
+      capabilities: { chat: true, images: true },
+    },
+  };
+  const result = normalizeGptHealth(input);
+  assert.equal(result.status, "blocked"); // service_alive=false → blocked
+  assert.equal(result.health.service_alive, false);
+  assert.equal(result.health.logged_in, true);
+  assert.equal(result.health.cdp_ready, true);
+  assert.equal(result.health.blocked_by, "login_required");
+});
+
+test("normalizeGptHealth preserves provider_count and providers[] with capabilities and models", () => {
+  const input = {
+    ok: true,
+    provider_count: 1,
+    providers: [
+      {
+        id: "chatgpt-web",
+        type: "browser-session",
+        capabilities: { chat: true, streaming: true, images: true },
+        models: ["chatgpt-web", "chatgpt-images"],
+      },
+    ],
+    runtime_contract: {
+      capabilities: { chat: true, streaming: true, images: true },
+    },
+  };
+  const result = normalizeGptHealth(input);
+  assert.equal(result.runtime.provider_count, 1);
+  assert.equal(result.runtime.providers.length, 1);
+  assert.equal(result.runtime.providers[0].id, "chatgpt-web");
+  assert.equal(result.runtime.providers[0].type, "browser-session");
+  assert.deepEqual(result.runtime.providers[0].capabilities, { chat: true, streaming: true, images: true });
+  assert.deepEqual(result.runtime.providers[0].models, ["chatgpt-web", "chatgpt-images"]);
+  assert.deepEqual(result.runtime.capabilities, { chat: true, streaming: true, images: true });
+});
+
+test("normalizeGptHealth preserves file paths (jobs_path, session_affinity_path, image_output_dir, upload_dir, media_index_path)", () => {
+  const input = {
+    ok: true,
+    jobs_path: "/data/jobs.json",
+    session_affinity_path: "/data/session_affinity.json",
+    image_output_dir: "/data/generated",
+    upload_dir: "/data/uploads",
+    media_index_path: "/data/media.json",
+  };
+  const result = normalizeGptHealth(input);
+  assert.equal(result.runtime.jobs_path, "/data/jobs.json");
+  assert.equal(result.runtime.session_affinity_path, "/data/session_affinity.json");
+  assert.equal(result.runtime.image_output_dir, "/data/generated");
+  assert.equal(result.runtime.upload_dir, "/data/uploads");
+  assert.equal(result.runtime.media_index_path, "/data/media.json");
+});
+
+test("normalizeGptHealth prefers runtime_contract.browser_connected over top-level browserConnected", () => {
+  // Real GPT /health: browser_connected is inside runtime_contract
+  const input = {
+    ok: true,
+    browserConnected: false,
+    runtime_contract: {
+      browser_connected: true,
+      service_alive: true,
+    },
+  };
+  const result = normalizeGptHealth(input);
+  assert.equal(result.health.browserConnected, true); // from runtime_contract, not top-level
+});
+
 // ─── normalizeCanvasHealth ───────────────────────────────────────────────────
 
 test("normalizeCanvasHealth maps status=ok to provider status=ok", () => {
@@ -179,6 +259,51 @@ test("normalizeCanvasHealth passes through leases array when present", () => {
   const result = normalizeCanvasHealth(input);
   assert.equal(result.queueState.queues[0].leases.length, 1);
   assert.equal(result.queueState.queues[0].leases[0].task_id, "task_1");
+});
+
+test("normalizeCanvasHealth handles thin /health response (auto-detects non-rich shape)", () => {
+  // canvas-to-api /health returns {browserConnected, status, timestamp} — no contract_version
+  // The normalizer should still produce a valid snapshot without errors
+  const input = {
+    browserConnected: false,
+    status: "ok",
+    timestamp: "2026-04-20 17:45:57.725 [UTC]",
+  };
+  const result = normalizeCanvasHealth(input);
+  assert.equal(result.provider, "gemini-canvas");
+  assert.equal(result.status, "ok");
+  assert.equal(result.health.browser_connected, false);
+  assert.equal(result.health.service_alive, null);   // thin /health has no service_alive
+  assert.equal(result.health.blocked_by, null);      // thin /health has no blocked_by
+  assert.equal(result.runtime.queue, null);
+  assert.equal(result.queueState, null);
+});
+
+test("normalizeCanvasHealth rich runtime_status response preserves upstream_health fields", () => {
+  const input = {
+    contract_version: "wcapi.browser_worker_runtime.v1",
+    provider_id: "gemini-canvas",
+    provider_type: "browser-session",
+    status: "ok",
+    service_alive: true,
+    logged_in: true,
+    cdp_ready: true,
+    browser_connected: true,
+    blocked_by: "none",
+    upstream_health: { status: "ok", browserConnected: true },
+    queue: {
+      supported: true,
+      mode: "profile-serial",
+      depth: { pending: 0, running: 0 },
+      leases: [],
+      lock_policy: null,
+    },
+  };
+  const result = normalizeCanvasHealth(input);
+  assert.equal(result.runtime.upstream_status, "ok");
+  assert.equal(result.runtime.upstream_browserConnected, true);
+  assert.equal(result.health.service_alive, true);
+  assert.equal(result.health.blocked_by, "none");
 });
 
 // ─── normalizeSub2apiHealth ────────────────────────────────────────────────────

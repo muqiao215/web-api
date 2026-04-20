@@ -159,7 +159,7 @@
 
 ### Phase 5: Observability & Admin Surface
 
-- **Status:** partial — Phase 5A and Phase 5B complete; Phase 5C (control-workbench expansion) complete; billing/deferred items deferred.
+- **Status:** partial — Phase 5A (ops_doctor + audit_log) and Phase 5B (control-workbench) complete; Phase 5C (control-workbench v2) complete; Phase 5D (diagnose.mjs jobs history) complete; Phase 5E (control-workbench normalizer enrichment) complete; billing/deferred items deferred.
 - **Phase 5A:** ops_doctor extension + audit_log package.
 - **Phase 5B:** control-workbench skeleton + canvas-to-api vocabulary alignment (completed in prior session).
 - **Phase 5C:** control-workbench narrow expansion — sub2api fully wired into providers+summary, ops_doctor diagnostic layer added.
@@ -204,6 +204,21 @@
   - Fix: `summarizeJobs()` now separates active (pending/running) from historical (completed) jobs. Health check only evaluates active jobs. Historical failures are reported separately in detail string without triggering WARN.
   - Before: `jobs_json` WARN (2 failed > 3/2 threshold, all treated equally)
   - After: `jobs_json` OK (active=0, historical=7, 2 historical failures visible in detail but do not affect health)
+- Phase 5E: control-workbench normalizer enrichment (this session):
+  - `normalizeGptHealth` now preserves all fields from the rich GPT /health `runtime_contract` object:
+    - `health.service_alive`, `health.logged_in`, `health.cdp_ready`, `health.blocked_by` (from `runtime_contract.*`)
+    - `health.browserConnected` prefers `runtime_contract.browser_connected` over top-level `raw.browserConnected`
+    - `runtime.provider_count`, `runtime.providers[]` (id, type, capabilities, models)
+    - `runtime.capabilities` (from `runtime_contract.capabilities`)
+    - `runtime.jobs_path`, `runtime.session_affinity_path`, `runtime.image_output_dir`, `runtime.upload_dir`, `runtime.media_index_path`
+  - `normalizeCanvasHealth` now auto-detects thin vs rich response (presence of `contract_version` field)
+    - Thin /health: `{"browserConnected":false,"status":"ok","timestamp":"..."}` — handled gracefully with nulls for rich fields
+    - Rich runtime_status: full profile, queue, and capability data preserved
+  - Added `canvasRuntimeScriptPath` option to `createControlBench()` — spawns `runtime_status.mjs` subprocess (same ops_doctor pattern) to get rich canvas data without requiring HTTP auth
+  - Added `runCanvasRuntimeStatus(scriptPath)` helper — mirrors `runOpsDoctor` pattern
+  - CLI gains `--canvas-runtime-script-path=<path>` flag
+  - `printText` updated to display new fields (capabilities, provider_count, upstream_status, blocked_by, service_alive, etc.)
+  - All 38 tests pass (6 new tests for runtime_contract enrichment and canvas thin/rich auto-detection)
 - Deferred:
   - Billing, payment, SaaS user management.
 
@@ -234,6 +249,7 @@
 | Phase 5A diagnose.mjs | `packages/ops_doctor/test/diagnose.test.mjs` | All 7 pass | All 7 pass (exit 0, output_dir_writable, jobs_json, media_json, --jobs override, JSON-only, repo_root) | pass |
 | Phase 5B control-workbench | `apps/control-workbench/test/index.test.mjs` | All 23 pass | All 23 pass (normalizeGptHealth 6, normalizeCanvasHealth 7, buildSummary 10) | pass |
 | Phase 5C control-workbench v2 | `apps/control-workbench/test/index.test.mjs` | All 32 pass | All 32 pass (added 9: normalizeSub2apiHealth 3, normalizeOpsDoctor 6) | pass |
+| Phase 5E control-workbench v3 enrichment | `apps/control-workbench/test/index.test.mjs` | All 38 pass | All 38 pass (added 6: GPT runtime_contract fields 4, canvas thin/rich auto-detect 2) | pass |
 | Phase 5D ops_doctor historical vs active | `packages/ops_doctor/test/diagnose.test.mjs` | All 11 pass | All 11 pass (4 new: historical failures OK, active running OK, active queued OK, mixed only active affects health) | pass |
 
 ## Error Log
@@ -258,12 +274,15 @@
 | 2026-04-20 Phase 5A | audit_log test 10: query(since) returned 2 events instead of 1 | 1 | Root cause: evt_new's auto-filled timestamp (now) satisfies `>= before`, same as evt_old's explicit timestamp (before). Fix: capture evt_new's actual timestamp from log() return value and use it as `since` filter so only evt_new (timestamp=now) satisfies `>= now`. |
 | 2026-04-20 Phase 5A | audit_log test 11: "Missing expected exception" — enrich=true auto-filled id/event_type/actor before validation | 1 | Root cause: `enrichEvent()` always auto-filled missing required fields regardless of `enrich` flag. Fix: refactored `enrichEvent(event, { enrich })` to accept enrich option; when `enrich=false` it returns raw event with contract_version only. Test passes `enrich: false` to createAuditLogger. |
 | 2026-04-20 Phase 5A | audit_log test 11 follow-up: enrichEvent still auto-filled even after adding { enrich } param | 1 | log() called `enrichEvent(partial)` without passing the `enrich` flag. Fixed: `enrichEvent(partial, { enrich })` now passes the flag through. |
+| 2026-04-20 Phase 5E | normalizeGptHealth test "service_alive=false to status=blocked" failing | 1 | Root cause: old code checked `raw.service_alive` (flat), but real GPT /health has `service_alive` inside `runtime_contract`. Fix: check `rc.service_alive ?? raw.service_alive` — prefers nested (real data), falls back to flat (test fixture compatibility). |
+| 2026-04-20 Phase 5A | audit_log test 11: "Missing expected exception" — enrich=true auto-filled id/event_type/actor before validation | 1 | Root cause: `enrichEvent()` always auto-filled missing required fields regardless of `enrich` flag. Fix: refactored `enrichEvent(event, { enrich })` to accept enrich option; when `enrich=false` it returns raw event with contract_version only. Test passes `enrich: false` to createAuditLogger. |
+| 2026-04-20 Phase 5A | audit_log test 11 follow-up: enrichEvent still auto-filled even after adding { enrich } param | 1 | log() called `enrichEvent(partial)` without passing the `enrich` flag. Fixed: `enrichEvent(partial, { enrich })` now passes the flag through. |
 
 ## 5-Question Reboot Check
 
 | Question | Answer |
 |----------|--------|
-| Where am I? | Phase 5A complete (ops_doctor extension + audit_log, 20 tests); Phase 5B complete (control-workbench 23 tests). All Phase 1-5B implementation done; Phase 6 (verification/cutover) pending. |
+| Where am I? | Phase 5A complete (ops_doctor + audit_log, 20 tests); Phase 5B complete (control-workbench 23 tests); Phase 5C complete (control-workbench v2, 32 tests); Phase 5D complete (diagnose.mjs jobs history, 11 tests); Phase 5E complete (control-workbench normalizer enrichment, 38 tests). All Phase 1-5E done; Phase 6 (verification/cutover) pending. |
 | Where am I going? | Phase 5 builds observability & admin surface (ops_doctor, audit_log, control-workbench). |
 | What's the goal? | Productize `web_capability_api` using `gpt2api` strengths while keeping `sub2api` integration architecture. |
 | What have I learned? | See `findings.md`. |
