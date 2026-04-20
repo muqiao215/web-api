@@ -1,0 +1,38 @@
+{
+  "schema": "prompt-factory-manual-gpt-prompts.v1",
+  "prompts": [
+    {
+      "source_id": "manual-5g-smart-city-tower",
+      "title": "5G Smart City Tower Bands",
+      "quality_tier": "high",
+      "platform_tags": ["gpt-image", "poster", "education", "infographic"],
+      "model_tags": ["gpt-image-2", "gpt-image"],
+      "category_tags": ["manual-curated", "technology", "5g", "smart-city"],
+      "original_author": "Maddox_Digital",
+      "notes": "Noise removed from JSON wrapper, handle, and image-size footer.",
+      "prompt": "Ultra-realistic cinematic futuristic 5G infrastructure visualization, advanced smart-city rooftop at night, subtle fog, glowing neon reflections, digital energy waves flowing through the air, cool blue and violet neon with soft ambient city glow, futuristic skyline with holographic billboards and distant antenna towers. Centered low-angle hero shot of a sleek brushed-metal 5G transmission tower with illuminated fiber lines. Show three signal systems around the tower: low band with wide soft blue wave rings spreading far into the distance and a floating label LOW BAND - LONG RANGE, mid band with cyan pulses circling the tower and a floating label MID BAND - BALANCED SPEED, high band with sharp concentrated violet laser-like beams projecting outward and a floating label HIGH BAND - ULTRA FAST. Surround the tower with massive MIMO antenna panels mounted symmetrically, beamforming modules casting focused directional beams, small-cell nodes on nearby buildings emitting localized bursts, glowing fiber-optic backhaul cables running into the network, and subtle cooling vents releasing soft white mist. Floating holographic HUD labels near each component, modern sans-serif typography, crisp connecting lines. 35mm wide lens, medium depth of field, tower razor sharp and skyline slightly softened, flowing waves, pulsing energy rings, floating digital particles, ultra-detailed materials, HDR lighting, 8K realism, vertical 9:16 composition."
+    },
+    {
+      "source_id": "manual-underwater-ink-goddess",
+      "title": "Underwater Chinese Ink Goddess",
+      "quality_tier": "high",
+      "platform_tags": ["gpt-image", "portrait", "editorial", "fantasy"],
+      "model_tags": ["gpt-image-2", "gpt-image"],
+      "category_tags": ["manual-curated", "chinese-aesthetic", "underwater", "ink-painting"],
+      "original_author": "johnAGI168",
+      "notes": "Removed handle, reference-lock language, and image-size footer; kept the aesthetic core.",
+      "prompt": "A stunning ultra-realistic cinematic portrait of a mythic young Asian woman submerged in an ethereal underwater dreamscape infused with traditional Chinese ink-painting aesthetics. She floats gracefully in crystal-clear water, body suspended in weightless elegance, long black hair flowing like living calligraphy brushstrokes and intertwining with streams of black ink that bloom through the water in mesmerizing organic patterns. Ancient Chinese ink paintings come alive around her: majestic dragons, koi fish, blooming lotus flowers, and misty mountain landscapes materialize from the swirling ink, some in monochrome wash, others accented with vermilion red and imperial gold, wrapping around her like protective spirits. Her eyes are open, gazing directly at the viewer with serene power and ancient knowing; lips painted in classic opera red against porcelain skin. Delicate ink marks drift across her body like living tattoos: poetry fragments, phoenix feathers, and peony petals. She wears a flowing hanfu-inspired garment in sheer white silk billowing like clouds beneath the water, with golden hairpins, jade ornaments, and red silk ribbons suspended around her in liquid time. Bioluminescent particles glow like cyan and soft pink stardust, air bubbles rise past her face reflecting tiny fragments of the surrounding ink artwork. Color palette blends deep blacks, subtle grays, pure whites, cinnabar red, turquoise, and molten gold. Underwater photography techniques, dramatic chiaroscuro god-rays from above, selective focus keeping the face razor sharp while ink formations fall into painterly softness, hauntingly beautiful, mythologically powerful, impossibly dreamlike, vertical 9:16 composition."
+    },
+    {
+      "source_id": "manual-shituoling-demon-kings",
+      "title": "Shituoling Demon Kings vs Sun Wukong",
+      "quality_tier": "high",
+      "platform_tags": ["gpt-image", "poster", "fantasy", "cinematic"],
+      "model_tags": ["gpt-image-2", "gpt-image"],
+      "category_tags": ["manual-curated", "journey-to-the-west", "dark-chinese-fantasy"],
+      "original_author": "MANISH1027512",
+      "notes": "Cleaned social noise and repetitive quality padding while preserving the scene design.",
+      "prompt": "Dark mysterious Chinese fantasy fused with eerie classical aesthetics, Journey to the West background, Shituoling, a vast infernal court of thousands of demons and strange beasts. Near-ground low-angle cinematic shot with a long telephoto feel, strong oppressive shadows, monumental scale. On the left giant throne sits the Elephant King in heavy ornate armor, demonic yet regal; on the center giant throne sits the Lion King in layered battle armor, the dominant ruler of the scene; on the right giant throne sits the Roc King in imposing feathered armor, predatory and divine. In the foreground a tiny Sun Wukong is seen from behind, walking forward with the golden cudgel resting across his shoulder, armored for battle, advancing alone toward the three kings. Emphasize correct perspective, dominant silhouette lines, monumental throne geometry, dense demon-court detail, Chinese grotesque myth atmosphere, blackened gold, ash gray, blood red accents, multi-layer rendering feel, superb sculptural detail, extreme texture detail, ultra-detailed armor engraving, cinematic contrast, vertical 9:16 composition."
+    }
+  ]
+}

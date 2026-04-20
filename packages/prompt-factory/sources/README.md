@@ -8,6 +8,7 @@
   - `stable-diffusion-prompt-templates.ASMlaX`
   - `prompt-pack.tmp`
   - `awesome-gpt-image-2-prompts`
+  - `manual_gpt_prompts.json`
 - 运行时桥接源
   - `telegram_gpt_image_bot/state/prompt_pool.json`
 
@@ -36,3 +37,9 @@
 - 只读取默认英文 `README.md`
 - 以 section/case/prompt code block 为抽取边界
 - 保留 case 链接与作者链接到 `metadata`
+
+`manual_gpt_prompts.json` 是人工收集/去噪后的 GPT prompt 源：
+
+- 适合保存从对话、社媒、测试记录里临时挑出来的 prompt
+- 不保留账号噪音、排名号、JSON 外壳、图片尺寸尾巴、无意义重复质量词
+- 人物类 prompt 也正常保存；是否过滤留给后续生成链路

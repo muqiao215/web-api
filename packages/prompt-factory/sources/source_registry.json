@@ -42,6 +42,12 @@
       "branch": "main"
     },
     {
+      "source_id": "manual_gpt",
+      "label": "Manual GPT Curated Prompts",
+      "sync_mode": "file_snapshot",
+      "workspace_path": "web_capability_api/packages/prompt-factory/sources/manual_gpt_prompts.json"
+    },
+    {
       "source_id": "runtime_bridge",
       "label": "telegram_gpt_image_bot runtime prompt pool",
       "sync_mode": "file_snapshot",

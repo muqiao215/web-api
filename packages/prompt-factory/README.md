@@ -6,7 +6,7 @@
 
 - `local_repos`
   从本地源仓库重建统一提示词池：
-  `ai-image-prompts-skill.J5v2Vt`、`BestPrompts.tmp`、`stable-diffusion-prompt-templates.ASMlaX`、`prompt-pack.tmp`、`awesome-gpt-image-2-prompts`
+  `ai-image-prompts-skill.J5v2Vt`、`BestPrompts.tmp`、`stable-diffusion-prompt-templates.ASMlaX`、`prompt-pack.tmp`、`awesome-gpt-image-2-prompts`、`sources/manual_gpt_prompts.json`
 - `runtime_bridge`
   直接桥接当前已验证在跑的
   `/root/.ductor/workspace/telegram_gpt_image_bot/state/prompt_pool.json`
@@ -118,13 +118,21 @@ cron 友好的状态文件会写到 `state/`：
 
 - 读取默认英文 `README.md`
 - 按 `## section -> ### Case -> Prompt code block` 抽取 case prompt
-- 默认仍遵守工程过滤策略，所以人物/人像 prompt 不会进入默认 GPT 池
+- 人物/人像 prompt 会保留进统一库和 GPT 导出，只在生成侧需要时再筛
+
+`manual_gpt` 用来保存你在对话里临时收集后人工去噪的 GPT prompt：
+
+- 数据文件：[sources/manual_gpt_prompts.json](/root/.ductor/workspace/web_capability_api/packages/prompt-factory/sources/manual_gpt_prompts.json)
+- 适合存放从聊天、社媒、测试记录中拣出来的高质量 prompt
+- 会去掉账号名、序号、JSON 壳、图片尺寸尾巴这类噪音
+- 人物/人像 prompt 也会正常入库；是否在生成链路里筛掉，交给后续消费侧处理
 
 ## 设计取舍
 
 - 不做服务端，不搞“大框架剧场”，先把可复用 build pipeline 落地
 - 保留 provider-specific export，避免后续 bot/API/showcase 再各自重新清洗
-- 默认过滤人物/人像与 reference-required prompt；如需放开，可用 CLI 开关
+- 整理入库阶段不丢 prompt，只记录 `human_related / requires_reference` 等质量标记
+- 生成侧是否过滤人物/参考图依赖 prompt，交给后续导出/消费链路决定
 - `runtime_bridge` 解决“今天就能接上现有运行时”；`local_repos` 解决“以后能从源仓库重建”
 - `sync` 只允许 fast-forward，不替你解决源仓库的本地脏改动
 - `promote` 把“最新 build”和“稳定可消费版本”分开，避免上游脏更新直接进生产

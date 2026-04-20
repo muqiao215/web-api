@@ -7,13 +7,13 @@ from typing import Any
 from prompt_factory.adapters import (
     compose_toloka_prompts,
     load_awesome_gpt_image_2_prompts,
+    load_manual_gpt_prompts,
     load_prompt_pack_prompts,
     load_runtime_bridge_prompts,
     load_stable_diffusion_templates,
     load_toloka_prompts,
     load_youmind_skill_prompts,
 )
-from prompt_factory.filters import record_allowed
 from prompt_factory.models import PromptPolicy, PromptRecord
 
 SOURCE_KIND_RANK = {"direct": 3, "atomic": 2, "composed": 1}
@@ -57,6 +57,7 @@ def build_prompt_pool(
         "stable_diffusion",
         "prompt_pack",
         "awesome_gpt_image_2",
+        "manual_gpt",
         "atomic_composer",
     ]
     records: list[PromptRecord] = []
@@ -110,6 +111,15 @@ def build_prompt_pool(
         except Exception as exc:  # noqa: BLE001
             errors.append(f"awesome_gpt_image_2: {exc}")
 
+    if "manual_gpt" in include and source_paths.get("manual_gpt"):
+        path = source_paths["manual_gpt"]
+        try:
+            batch = load_manual_gpt_prompts(path)
+            records.extend(batch)
+            source_meta.append({"name": "manual_gpt", "path": str(path), "count": str(len(batch))})
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"manual_gpt: {exc}")
+
     if "atomic_composer" in include and toloka_rows:
         batch = compose_toloka_prompts(toloka_rows, toloka_keywords, compose_keyword_limit)
         records.extend(batch)
@@ -124,8 +134,7 @@ def build_prompt_pool(
         except Exception as exc:  # noqa: BLE001
             errors.append(f"runtime_bridge: {exc}")
 
-    filtered = [record for record in records if record_allowed(record, policy)]
-    deduped = _dedupe(filtered)
+    deduped = _dedupe(records)
 
     source_counts: dict[str, int] = {}
     source_kind_counts: dict[str, int] = {}

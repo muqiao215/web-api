@@ -36,7 +36,15 @@ DEFAULT_STATE_DIR = PROJECT_ROOT / "state"
 DEFAULT_PROMOTED_ROOT = PROJECT_ROOT / "builds" / "promoted"
 
 PROFILE_SOURCES = {
-    "local_repos": ["youmind", "toloka", "stable_diffusion", "prompt_pack", "awesome_gpt_image_2", "atomic_composer"],
+    "local_repos": [
+        "youmind",
+        "toloka",
+        "stable_diffusion",
+        "prompt_pack",
+        "awesome_gpt_image_2",
+        "manual_gpt",
+        "atomic_composer",
+    ],
     "runtime_bridge": ["runtime_bridge"],
 }
 

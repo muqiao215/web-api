@@ -155,12 +155,34 @@ class PromptFactoryBuildTests(unittest.TestCase):
             "```\n",
             encoding="utf-8",
         )
+        manual = root / "manual_gpt_prompts.json"
+        write_json(
+            manual,
+            {
+                "schema": "prompt-factory-manual-gpt-prompts.v1",
+                "prompts": [
+                    {
+                        "source_id": "manual-tech",
+                        "title": "Manual tech prompt",
+                        "prompt": "Ultra-realistic cinematic smart city antenna tower, neon signal waves, holographic HUD labels, dramatic blue lighting, detailed infrastructure poster composition.",
+                        "category_tags": ["manual-curated", "technology"],
+                    },
+                    {
+                        "source_id": "manual-human",
+                        "title": "Manual human prompt",
+                        "prompt": "A cinematic portrait of a young woman with flowing hair in an underwater ink dreamscape.",
+                        "category_tags": ["manual-curated", "portrait"],
+                    },
+                ],
+            },
+        )
         return {
             "youmind": youmind,
             "toloka": toloka,
             "stable_diffusion": sd,
             "prompt_pack": prompt_pack,
             "awesome_gpt_image_2": awesome,
+            "manual_gpt": manual,
         }
 
     def test_build_pool_filters_and_composes_records(self) -> None:
@@ -174,25 +196,28 @@ class PromptFactoryBuildTests(unittest.TestCase):
                     "stable_diffusion",
                     "prompt_pack",
                     "awesome_gpt_image_2",
+                    "manual_gpt",
                     "atomic_composer",
                 ],
                 compose_keyword_limit=2,
             )
 
         self.assertEqual(pool["schema"], "prompt-factory-pool.v1")
-        self.assertEqual(pool["prompt_count"], 7)
-        self.assertEqual(pool["source_counts"]["youmind-ai-image-prompts-skill"], 1)
-        self.assertEqual(pool["source_counts"]["toloka-bestprompts"], 1)
+        self.assertEqual(pool["prompt_count"], 14)
+        self.assertEqual(pool["source_counts"]["youmind-ai-image-prompts-skill"], 2)
+        self.assertEqual(pool["source_counts"]["toloka-bestprompts"], 2)
         self.assertEqual(pool["source_counts"]["stable-diffusion-prompt-templates"], 1)
-        self.assertEqual(pool["source_counts"]["hoppycat-prompt-pack"], 1)
+        self.assertEqual(pool["source_counts"]["hoppycat-prompt-pack"], 2)
         self.assertEqual(pool["source_counts"]["awesome-gpt-image-2-prompts"], 1)
-        self.assertEqual(pool["source_counts"]["atomic-composer"], 2)
-        self.assertTrue(all(not item["quality"]["human_related"] for item in pool["prompts"]))
+        self.assertEqual(pool["source_counts"]["manual-gpt-prompts"], 2)
+        self.assertEqual(pool["source_counts"]["atomic-composer"], 4)
+        self.assertTrue(any(item["quality"]["human_related"] for item in pool["prompts"]))
         self.assertTrue(all(not item["quality"]["requires_reference"] for item in pool["prompts"]))
         self.assertTrue(any(item["source_kind"] == "composed" for item in pool["prompts"]))
         self.assertGreater(pool["prompts"][0]["selection_score"], 0)
         self.assertTrue(any(item["source"] == "hoppycat-prompt-pack" for item in pool["prompts"]))
         self.assertTrue(any(item["source"] == "awesome-gpt-image-2-prompts" for item in pool["prompts"]))
+        self.assertTrue(any(item["source"] == "manual-gpt-prompts" for item in pool["prompts"]))
 
     def test_provider_exports_are_runtime_compatible(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -210,6 +235,7 @@ class PromptFactoryBuildTests(unittest.TestCase):
 
         self.assertEqual(gpt["schema"], "telegram-gpt-image-prompt-pool.v1")
         self.assertEqual(gpt["prompt_count"], pool["prompt_count"])
+        self.assertTrue(any(item["source"] == "manual-gpt-prompts" for item in gpt["prompts"]))
         self.assertEqual(banana["version"], 2)
         self.assertEqual(banana["source"], "prompt_factory")
         self.assertLessEqual(banana["prompt_count"], 3)
