@@ -34,7 +34,10 @@
         "provider_profile_label": { "type": "string" },
         "conversation_id": { "type": "string" },
         "conversation_url": { "type": "string" },
-        "job_id": { "type": "string" }
+        "job_id": { "type": "string" },
+        "width": { "type": "integer", "minimum": 0 },
+        "height": { "type": "integer", "minimum": 0 },
+        "sha256": { "type": "string" }
       },
       "additionalProperties": true
     }

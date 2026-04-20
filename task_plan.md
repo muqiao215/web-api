@@ -35,7 +35,7 @@ This plan is for architecture and implementation sequencing only. It does not re
 - [x] Extend `packages/provider_contracts` with schemas for account pool, proxy pool, image task, queue state, and audit event.
 - [x] Define one internal image task state machine that can serve GPT, Gemini Canvas, DeepSeek, Qwen, and future providers.
 - [x] Define a provider capability contract that distinguishes `api_surface_aligned`, `routed`, and `healthy` via `health_tier` field on `provider-capability.schema.json`.
-- [x] Define artifact metadata contract shared by workers, bots, showcase sites, and admin surfaces (existing `artifact-record.schema.json` covers this; extended its test coverage).
+- [x] Define artifact metadata contract shared by workers, bots, showcase sites, and admin surfaces (existing `artifact-record.schema.json` covers this; aligned with image-task via `artifact-output.schema.json` + `ARTIFACT_MAPPING.md`).
 - **Status:** complete
 
 #### Schema additions (Phase 2)
@@ -48,6 +48,15 @@ This plan is for architecture and implementation sequencing only. It does not re
 | `queue-state.schema.json` | Async task queue state with profile/global scope, capacity, and lease semantics |
 | `audit-event.schema.json` | Audit event for admin actions, provider selections, route decisions, task lifecycle, artifact writes |
 | `provider-capability.schema.json` | Added `health_tier: enum(api_surface_aligned, routed, healthy)` field |
+| `artifact-output.schema.json` | Lightweight output item shape; bridges `image-task.outputs[]` and `artifact-record` lifecycle stages |
+| `ARTIFACT_MAPPING.md` | Field-level mapping table: `artifact_id→id`, `mime→mime_type`, `width/height/sha256→metadata`, task-level context fields |
+
+#### Artifact Alignment
+
+- `image-task.outputs[]` items now reference `artifact-output.schema.json` via `$ref` (allOf composition).
+- `artifact-record.metadata` now explicitly allows `width`, `height`, `sha256` (previously not present).
+- `ARTIFACT_MAPPING.md` documents the conversion from `ImageTask.outputs[]` to `ArtifactRecord` including the rename rules and context-only fields.
+- Tests: 22 total, all pass (added 5 new tests for artifact alignment).
 
 #### Schema validation
 

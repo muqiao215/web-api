@@ -40,6 +40,28 @@
   - `task_plan.md` (Phase 2 checklist updated)
   - `progress.md` (this entry)
 
+### Phase 2 Follow-up: Artifact Metadata Alignment
+
+- **Status:** complete
+- **Actions taken:**
+  - Identified field naming mismatches between `image-task.outputs[]` and `artifact-record`:
+    - `artifact_id` vs `id`, `mime` vs `mime_type`, missing `width/height/sha256` in artifact-record top-level
+  - Created `schemas/artifact-output.schema.json` as lightweight output item shape referenced by `image-task.outputs[]` via `$ref` (allOf composition).
+  - Updated `image-task.schema.json` to add `$ref: artifact-output.schema.json` in `outputs.items` and description pointing to mapping doc.
+  - Added `width`, `height`, `sha256` to `artifact-record.metadata.properties` so image-task dimensions are explicitly representable.
+  - Created `schemas/ARTIFACT_MAPPING.md` with full field-level mapping table and conversion pseudocode.
+  - Updated test runner: replaced lazy `loadSchema` with pre-register-by-$id strategy (Ajv v8 resolves $ref immediately at compile time).
+  - Added 5 new tests (artifact-output validation, image-task $ref validation, artifact-record width/height/sha256 in metadata, conversion test).
+  - All 22 tests pass.
+- Files created/modified:
+  - `packages/provider_contracts/schemas/artifact-output.schema.json` (new)
+  - `packages/provider_contracts/schemas/ARTIFACT_MAPPING.md` (new)
+  - `packages/provider_contracts/schemas/image-task.schema.json` (updated — added $ref to outputs, updated description)
+  - `packages/provider_contracts/schemas/artifact-record.schema.json` (updated — added width/height/sha256 to metadata)
+  - `packages/provider_contracts/test/schemas.test.mjs` (updated — 5 new tests, 22 total, pre-register strategy)
+  - `task_plan.md` (artifact alignment note added to Phase 2)
+  - `progress.md` (this entry)
+
 ### Phase 3: Runtime Standardization
 
 - **Status:** pending
@@ -77,7 +99,8 @@
 | Test | Input | Expected | Actual | Status |
 |------|-------|----------|--------|--------|
 | Planning file creation | `task_plan.md`, `findings.md`, `progress.md` | Files exist with concrete plan content | All three files created and content verified by `test -s` and keyword checks | pass |
-| Phase 2 schema validation | `packages/provider_contracts/test/schemas.test.mjs` | All 17 tests pass | All 17 tests pass (provider-capability health_tier, image-task states, account-pool lease+health, proxy-pool auth+health, queue-state lease, audit-event types, browser-worker-runtime extends runtime-health) | pass |
+| Phase 2 schema validation | `packages/provider_contracts/test/schemas.test.mjs` | All 17 tests pass | All 17 tests pass (original Phase 2 schemas) | pass |
+| Phase 2 artifact alignment | `packages/provider_contracts/test/schemas.test.mjs` | All 22 tests pass | All 22 tests pass (added 5 tests: artifact-output basic+full, image-task $ref, artifact-record width/height/sha256 in metadata, conversion test) | pass |
 
 ## Error Log
 
@@ -87,12 +110,14 @@
 | 2026-04-20 Phase 2 | JSON Schema syntax: `type: ["string", "format": "date-time", "null"]` is invalid (format cannot be inside union type array) | 1 | Fixed to `anyOf: [{ type: "string", format: "date-time" }, { type: "null" }]` in all affected schemas (image-task, account-pool, proxy-pool, queue-state) |
 | 2026-04-20 Phase 2 | Ajv duplicate schema registration when pre-adding then compiling | 1 | Moved to lazy `loadSchema` callback; all schemas registered lazily on first $ref encounter |
 | 2026-04-20 Phase 2 | `fileURLToPath` path.join issue with URL objects | 1 | Added explicit `fileURLToPath` + `path.join` for `import.meta.url` in test runner |
+| 2026-04-20 Follow-up | Ajv MissingRefError: `$ref: artifact-output.schema.json` not resolved via lazy loadSchema | 1 | Replaced lazy `loadSchema` strategy with pre-register-all-by-$id: load all schemas first, `ajv.addSchema()` each by its `$id`, then compile — Ajv v8 resolves `$ref` immediately at compile time, not lazily |
+| 2026-04-20 Follow-up | JSON Schema `$ref` inside `allOf` with `additionalProperties: true` | 1 | Validated: `allOf: [{ $ref: "artifact-output.schema.json" }, { type: "object", properties: {...} }]` + `additionalProperties: true` on parent — composition works correctly; outputs items pass both the ref and the inline property constraints |
 
 ## 5-Question Reboot Check
 
 | Question | Answer |
 |----------|--------|
-| Where am I? | Phase 2 complete; 5 new schemas + 1 updated schema + 17 passing tests in provider_contracts. |
+| Where am I? | Phase 2 complete; artifact alignment follow-up also complete (22 passing tests). |
 | Where am I going? | Phase 3 aligns runtime jobs.json and media.json with new contracts. |
 | What's the goal? | Productize `web_capability_api` using `gpt2api` strengths while keeping `sub2api` integration architecture. |
 | What have I learned? | See `findings.md`. |

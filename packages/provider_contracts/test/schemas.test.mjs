@@ -18,36 +18,32 @@ const SCHEMA_FILES = [
   "proxy-pool.schema.json",
   "queue-state.schema.json",
   "audit-event.schema.json",
+  "artifact-output.schema.json",
 ];
 
 // Build Ajv once with all schemas
-// loadSchema is called when Ajv encounters an unknown $ref during compilation
-const ajv = new Ajv({ allErrors: true, strict: false, validateSchema: false, loadSchema: async (uri) => {
-  // Map schema $id or relative filename to local file path
-  const schemaDir = SCHEMAS_DIR;
-  let resolvedPath = null;
-
-  if (uri.startsWith("https://local.web-capability-api/schemas/")) {
-    const filename = path.basename(uri);
-    resolvedPath = path.join(schemaDir, filename);
-  } else if (!uri.startsWith("https://") && !uri.startsWith("http://")) {
-    // Plain relative filename
-    resolvedPath = path.join(schemaDir, path.basename(uri));
-  } else {
-    throw new Error("Cannot resolve schema URI: " + uri);
-  }
-
-  const raw = await fs.readFile(resolvedPath, "utf8");
-  return JSON.parse(raw);
-}});
+// Pre-load all schemas by their $id so cross-$ref resolution works at compile time.
+// Ajv v8 resolves $ref immediately during compile; loadSchema is only a fallback
+// for truly unknown URIs. By pre-loading, all local refs resolve without callback.
+const ajv = new Ajv({ allErrors: true, strict: false, validateSchema: false });
 addFormats(ajv);
 
-// Compile validators — loadSchema is called lazily for $ref targets
-const validators = {};
+// Load all schemas into memory first
+const schemaByFile = {};
 for (const file of SCHEMA_FILES) {
   const schemaPath = path.join(SCHEMAS_DIR, file);
   const raw = await fs.readFile(schemaPath, "utf8");
-  const schema = JSON.parse(raw);
+  schemaByFile[file] = JSON.parse(raw);
+}
+
+// Register each schema under its $id so $ref resolution finds them
+for (const [file, schema] of Object.entries(schemaByFile)) {
+  if (schema.$id) ajv.addSchema(schema);
+}
+
+// Compile validators after all schemas are pre-registered
+const validators = {};
+for (const [file, schema] of Object.entries(schemaByFile)) {
   validators[file] = ajv.compile(schema);
 }
 
@@ -401,6 +397,124 @@ test("browser-worker-runtime: extends runtime-health", () => {
         browser_connected: true,
       },
     ],
+  };
+  assert.ok(validate(instance), JSON.stringify(validate.errors, null, 2));
+});
+
+// --- artifact-output.schema.json ---
+
+test("artifact-output: minimal valid instance passes", () => {
+  const validate = validators["artifact-output.schema.json"];
+  const instance = {
+    artifact_id: "art_abc",
+    url: "/v1/artifacts/art_abc",
+  };
+  assert.ok(validate(instance), JSON.stringify(validate.errors, null, 2));
+});
+
+test("artifact-output: full valid instance passes", () => {
+  const validate = validators["artifact-output.schema.json"];
+  const instance = {
+    artifact_id: "art_xyz",
+    url: "http://127.0.0.1:4242/generated/xyz.png",
+    mime: "image/png",
+    width: 1024,
+    height: 1024,
+    sha256: "abc123def456",
+  };
+  assert.ok(validate(instance), JSON.stringify(validate.errors, null, 2));
+});
+
+// --- image-task + artifact-output $ref ---
+
+test("image-task: outputs reference artifact-output schema", () => {
+  const validate = validators["image-task.schema.json"];
+  const instance = {
+    contract_version: "1.0.0",
+    id: "imgtask_ref",
+    provider: "gpt-web",
+    model: "gpt-image-2",
+    status: "succeeded",
+    prompt: "red cube",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    outputs: [
+      {
+        artifact_id: "art_ref1",
+        url: "/v1/artifacts/art_ref1",
+        mime: "image/png",
+        width: 1024,
+        height: 1024,
+        sha256: "deadbeef",
+      },
+    ],
+  };
+  assert.ok(validate(instance), JSON.stringify(validate.errors, null, 2));
+});
+
+// --- artifact-record with width/height in metadata ---
+
+test("artifact-record: width/height/sha256 in metadata from image-task output", () => {
+  const validate = validators["artifact-record.schema.json"];
+  // Simulate converting an image-task output to an artifact-record
+  const taskOutput = {
+    artifact_id: "art_conv",
+    url: "http://127.0.0.1:4242/generated/conv.png",
+    mime: "image/png",
+    width: 512,
+    height: 512,
+    sha256: "feedface",
+  };
+  const task = {
+    provider: "gpt-web",
+    model: "gpt-image-2",
+    prompt: "blue sphere",
+    id: "imgtask_conv",
+    account_id: "gpt-profile-a",
+    profile_lock: "gpt-web-default",
+    completed_at: new Date().toISOString(),
+  };
+  // Mapping per ARTIFACT_MAPPING.md
+  const artifactRecord = {
+    contract_version: "wcapi.artifact.v1",
+    id: taskOutput.artifact_id,
+    object: "artifact",
+    provider: task.provider,
+    kind: "image",
+    model: task.model,
+    prompt: task.prompt,
+    mime_type: taskOutput.mime,
+    created_at: Math.floor(new Date(task.completed_at).getTime() / 1000),
+    local_path: `/tmp/${taskOutput.artifact_id}.png`,
+    url: taskOutput.url,
+    metadata: {
+      width: taskOutput.width,
+      height: taskOutput.height,
+      sha256: taskOutput.sha256,
+      job_id: task.id,
+      provider_profile_id: task.account_id,
+      provider_profile_label: task.profile_lock,
+    },
+  };
+  assert.ok(validate(artifactRecord), JSON.stringify(validate.errors, null, 2));
+});
+
+test("artifact-record: metadata.width and metadata.height are optional integers", () => {
+  const validate = validators["artifact-record.schema.json"];
+  const instance = {
+    contract_version: "wcapi.artifact.v1",
+    id: "art_dims",
+    object: "artifact",
+    provider: "gpt-web",
+    kind: "image",
+    model: "gpt-image-2",
+    created_at: 1713000000,
+    local_path: "/tmp/dims.png",
+    metadata: {
+      width: 2048,
+      height: 2048,
+      sha256: "abcd1234",
+    },
   };
   assert.ok(validate(instance), JSON.stringify(validate.errors, null, 2));
 });

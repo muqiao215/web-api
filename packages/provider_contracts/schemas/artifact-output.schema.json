@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.web-capability-api/schemas/artifact-output.schema.json",
+  "title": "ArtifactOutput",
+  "description": "Lightweight output item produced by an image task. This is the immediate result returned from a provider worker before full artifact record persistence. To convert to an ArtifactRecord: set id=artifact_id, mime_type=mime, provider/model/kind/local_path from task-level context, object='artifact', and place width/height in metadata. See ARTIFACT_MAPPING.md for full field mapping table.",
+  "type": "object",
+  "required": ["artifact_id", "url"],
+  "properties": {
+    "artifact_id": {
+      "type": "string",
+      "description": "Local identifier for this output. Maps to ArtifactRecord.id."
+    },
+    "url": {
+      "type": "string",
+      "description": "URL at which this output is accessible. Maps to ArtifactRecord.url."
+    },
+    "mime": {
+      "type": "string",
+      "description": "MIME type of the output. Maps to ArtifactRecord.mime_type."
+    },
+    "width": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Pixel width. Place in ArtifactRecord.metadata.width if persisted."
+    },
+    "height": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Pixel height. Place in ArtifactRecord.metadata.height if persisted."
+    },
+    "sha256": {
+      "type": "string",
+      "description": "SHA-256 digest of the output file. Optional in ArtifactRecord; place in metadata.sha256 if stored."
+    }
+  },
+  "additionalProperties": true
+}
