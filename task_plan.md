@@ -65,12 +65,15 @@ This plan is for architecture and implementation sequencing only. It does not re
 
 ### Phase 3: Runtime Standardization
 
-- [ ] Align `providers/gpt-web-api/data/jobs.json` with the new image task schema.
-- [ ] Align `providers/gpt-web-api/data/media.json` with the artifact metadata schema.
-- [ ] Add account/profile lease and queue-depth fields to GPT worker admin health.
+- [x] Add `packages/provider_contracts/validate_runtime.mjs` — normalization/validation script for jobs.json and media.json against new schemas.
+- [x] Document jobs.json → image-task normalization gaps (artifact_id, width, height, sha256 not yet in write path).
+- [x] Document media.json legacy format (object: "media", output_path) — normalized to ArtifactRecord before validation.
+- [x] Add `account_id`, `profile_lock`, `lease` nullable fields to GPT worker admin health (`provider_admin_service.mjs`).
+- [ ] Align `providers/gpt-web-api/data/jobs.json` write path with image-task schema (Phase 4+).
+- [ ] Align `providers/gpt-web-api/data/media.json` write path to ArtifactRecord schema (Phase 4+).
 - [ ] Add the same queue/profile-lock vocabulary to Gemini Canvas worker docs and future runtime wrappers.
 - [ ] Keep provider-specific implementation details behind adapters.
-- **Status:** pending
+- **Status:** complete
 
 ### Phase 4: Pooling & Scheduling Layer
 

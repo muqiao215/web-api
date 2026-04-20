@@ -20,6 +20,10 @@ export function createProviderAdminService({
       pending: Number.isInteger(stats.pending) ? stats.pending : null,
       running: Number.isInteger(stats.running) ? stats.running : null,
       total: Number.isInteger(stats.total) ? stats.total : null,
+      // Phase 4: account pool — these require provider_pool package
+      account_id: null,
+      profile_lock: null,
+      lease: null,
     };
   }
 
@@ -104,6 +108,9 @@ export function createProviderAdminService({
       })),
       queue_depth: getQueueDepth(),
       session_locks: getSessionLockCount(),
+      account_id: null,
+      profile_lock: null,
+      lease: null,
       jobs_path: jobsPath,
       session_affinity_path: sessionAffinityPath,
       image_output_dir: outputDir,

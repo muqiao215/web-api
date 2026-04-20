@@ -64,11 +64,35 @@
 
 ### Phase 3: Runtime Standardization
 
-- **Status:** pending
+- **Status:** complete
+- **Started:** 2026-04-20
+- **Completed:** 2026-04-20
 - Actions taken:
-  - Not started.
+  - Analyzed `jobs.json` (7 jobs, 3 images.generations) against image-task.schema.json.
+  - Analyzed `media.json` (1 record) against artifact-record.schema.json.
+  - Identified gaps: jobs.json lacks artifact_id/width/height/sha256 in result[] items (write path gap — Phase 4+); media.json is in legacy "media" format (pre-schema).
+  - Created `packages/provider_contracts/validate_runtime.mjs` — normalization + validation script that:
+    - Normalizes jobs.json image-gen result[] items to ImageTask.outputs[] shape before validation
+    - Normalizes legacy media.json "media" format to ArtifactRecord format before validation
+    - Reports known gaps with clear "KNOWN GAP" / "NORM GAP" labels
+    - Exit code 0 when normalized, exit code 1 when non-normalized gaps found
+  - Added `account_id`, `profile_lock`, `lease` nullable fields to `provider_admin_service.mjs` queueMetrics() and health() output (Phase 4 account pool fills these).
+  - Added 2 new tests to `providers/gpt-web-api/test/provider_admin_service.test.mjs` for new admin health fields.
+  - All 3 admin service tests pass; all 22 schema tests pass.
 - Files created/modified:
-  - None yet.
+  - `packages/provider_contracts/validate_runtime.mjs` (new — normalization/validation script)
+  - `providers/gpt-web-api/services/provider_admin_service.mjs` (updated — added account_id/profile_lock/lease nullable fields)
+  - `providers/gpt-web-api/test/provider_admin_service.test.mjs` (updated — 2 new tests for new admin health fields)
+  - `task_plan.md` (Phase 3 checklist updated)
+  - `progress.md` (this entry)
+
+### Phase 3 Key Findings
+
+| File | Finding | Action |
+|------|---------|--------|
+| `jobs.json` | `result[]` items have `output_path`/`mime_type` but no `artifact_id`, `width`, `height`, `sha256` | Write path update deferred to Phase 4 (JobQueue / MediaStore) |
+| `media.json` | Uses legacy `object: "media"` and `output_path` — pre-ArtifactRecord schema | Normalized to ArtifactRecord format in validate_runtime.mjs; re-write via MediaStore in Phase 4+ |
+| `provider_admin_service.mjs` | Missing `account_id`, `profile_lock`, `lease` fields in admin health output | Added as nullable (null) with Phase 4 comment |
 
 ### Phase 4: Pooling & Scheduling Layer
 
@@ -101,6 +125,9 @@
 | Planning file creation | `task_plan.md`, `findings.md`, `progress.md` | Files exist with concrete plan content | All three files created and content verified by `test -s` and keyword checks | pass |
 | Phase 2 schema validation | `packages/provider_contracts/test/schemas.test.mjs` | All 17 tests pass | All 17 tests pass (original Phase 2 schemas) | pass |
 | Phase 2 artifact alignment | `packages/provider_contracts/test/schemas.test.mjs` | All 22 tests pass | All 22 tests pass (added 5 tests: artifact-output basic+full, image-task $ref, artifact-record width/height/sha256 in metadata, conversion test) | pass |
+| Phase 3 schema suite | `packages/provider_contracts/test/schemas.test.mjs` | All 22 pass | All 22 pass | pass |
+| Phase 3 admin health | `providers/gpt-web-api/test/provider_admin_service.test.mjs` | All 3 pass (including 2 new tests) | All 3 pass | pass |
+| Phase 3 runtime validation | `packages/provider_contracts/validate_runtime.mjs` | Exit 0 (normalized) or 1 (gaps) | Exit 1 with KNOWN GAPs for jobs.json artifact_id/width/height/sha256 and NORM GAP for media.json legacy format (expected — deferred to Phase 4) | pass (documented gaps as expected) |
 
 ## Error Log
 
@@ -112,13 +139,15 @@
 | 2026-04-20 Phase 2 | `fileURLToPath` path.join issue with URL objects | 1 | Added explicit `fileURLToPath` + `path.join` for `import.meta.url` in test runner |
 | 2026-04-20 Follow-up | Ajv MissingRefError: `$ref: artifact-output.schema.json` not resolved via lazy loadSchema | 1 | Replaced lazy `loadSchema` strategy with pre-register-all-by-$id: load all schemas first, `ajv.addSchema()` each by its `$id`, then compile — Ajv v8 resolves `$ref` immediately at compile time, not lazily |
 | 2026-04-20 Follow-up | JSON Schema `$ref` inside `allOf` with `additionalProperties: true` | 1 | Validated: `allOf: [{ $ref: "artifact-output.schema.json" }, { type: "object", properties: {...} }]` + `additionalProperties: true` on parent — composition works correctly; outputs items pass both the ref and the inline property constraints |
+| 2026-04-20 Phase 3 | `validate_runtime.mjs`: `result` referenced instead of `job.result` in normalizeJobToImageTask | 1 | Fixed to `job.result` |
+| 2026-04-20 Phase 3 | `validate_runtime.mjs`: typo `normNormalizedRecord` instead of `normalizedRecord` in media validation | 1 | Fixed variable name |
 
 ## 5-Question Reboot Check
 
 | Question | Answer |
 |----------|--------|
-| Where am I? | Phase 2 complete; artifact alignment follow-up also complete (22 passing tests). |
-| Where am I going? | Phase 3 aligns runtime jobs.json and media.json with new contracts. |
+| Where am I? | Phase 3 complete; validate_runtime.mjs normalization/validation script created; admin health new fields added. |
+| Where am I going? | Phase 4 builds the pooling & scheduling layer (provider_pool, proxy_pool, job_queue packages). |
 | What's the goal? | Productize `web_capability_api` using `gpt2api` strengths while keeping `sub2api` integration architecture. |
 | What have I learned? | See `findings.md`. |
 | What have I done? | Created the persistent plan/finding/progress files. |

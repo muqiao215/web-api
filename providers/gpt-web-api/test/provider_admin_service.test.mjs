@@ -105,6 +105,10 @@ test("Provider admin service exposes provider details with health and queue metr
   assert.equal(provider.health.ok, true);
   assert.equal(provider.runtime.queue_depth, 3);
   assert.equal(provider.runtime.session_locks, 1);
+  // account_id, profile_lock, lease: nullable — Phase 4 account pool fills these
+  assert.equal(provider.runtime.account_id, null);
+  assert.equal(provider.runtime.profile_lock, null);
+  assert.equal(provider.runtime.lease, null);
   assert.equal(provider.runtime_contract.provider_id, "chatgpt-web");
   assert.equal(provider.runtime_contract.queue.mode, "profile-serial");
   assert.deepEqual(provider.models, ["chatgpt-web", "chatgpt-images"]);
@@ -134,4 +138,31 @@ test("Provider admin service rejects unknown providers", async () => {
   });
 
   await assert.rejects(() => service.getProviderDetail("missing"), /Unknown provider/);
+});
+
+test("Provider admin service health output includes account_id, profile_lock, lease fields (Phase 4 placeholders)", async () => {
+  const router = new ProviderRouter();
+  router.register(createProvider("chatgpt-web", ["chatgpt-web"]), { isDefault: true });
+
+  const service = createProviderAdminService({
+    providerRouter: router,
+    inspectBrowserReadiness: async () => ({ ok: true }),
+    inspectRuntimeStatus: async () => ({ status: "ok" }),
+    getQueueDepth: () => 1,
+    getQueueStats: () => ({ pending: 1, running: 0, total: 1 }),
+    getSessionLockCount: () => 0,
+    jobsPath: "/tmp/jobs.json",
+    sessionAffinityPath: "/tmp/session_affinity.json",
+    mediaPath: "/tmp/media.json",
+    outputDir: "/tmp/generated",
+    uploadDir: "/tmp/uploads",
+    cdpHttp: "http://127.0.0.1:9222",
+  });
+
+  const healthOutput = await service.health();
+  assert.equal(healthOutput.queue_depth, 1);
+  assert.equal(healthOutput.session_locks, 0);
+  assert.equal(healthOutput.account_id, null, "account_id is nullable — Phase 4 account pool");
+  assert.equal(healthOutput.profile_lock, null, "profile_lock is nullable — Phase 4 account pool");
+  assert.equal(healthOutput.lease, null, "lease is nullable — Phase 4 account pool");
 });
