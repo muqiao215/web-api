@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -103,6 +104,17 @@ const providerAdminService = createProviderAdminService({
   outputDir: OUTPUT_DIR,
   uploadDir: UPLOAD_DIR,
   cdpHttp: CDP_HTTP,
+  checkPathWritability: (p) => {
+    try {
+      if (!fs.existsSync(p)) return { writable: false, error: "not found" };
+      const testFile = path.join(p, `.health_write_test_${Date.now()}`);
+      fs.writeFileSync(testFile, "ok");
+      fs.unlinkSync(testFile);
+      return { writable: true };
+    } catch (err) {
+      return { writable: false, error: err.message };
+    }
+  },
 });
 
 const researchService = createResearchService({

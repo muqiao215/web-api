@@ -1,0 +1,9 @@
+{
+  "name": "@web-capability-api/audit-log",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "JSONL audit logger aligned with audit-event.schema.json. Append-only, file-backed.",
+  "main": "src/index.mjs",
+  "devDependencies": {}
+}

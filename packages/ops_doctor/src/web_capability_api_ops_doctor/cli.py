@@ -25,6 +25,7 @@ RUNTIME_HTTP_CHECKS = [
 
 RUNTIME_COMMAND_CHECKS = [
     ("canvas-browser-worker", ["node", "providers/canvas-to-api/runtime_status.mjs"]),
+    ("gpt-provider-diagnostic", ["node", "packages/ops_doctor/src/diagnose.mjs"]),
 ]
 
 TCP_CHECKS = [
@@ -115,6 +116,17 @@ def runtime_status_to_result(name: str, payload: dict[str, Any]) -> CheckResult:
     return CheckResult("runtime", name, status, summarize_runtime(payload))
 
 
+def diagnose_result(name: str, payload: dict[str, Any]) -> list[CheckResult]:
+    """Handle gpt-provider-diagnostic JSON output which contains a list of checks."""
+    results = []
+    for check in payload.get("checks", []):
+        check_name = check.get("name", name)
+        status = check.get("status", "FAIL")
+        detail = check.get("detail", "")
+        results.append(CheckResult("runtime", f"{name}/{check_name}", status, detail))
+    return results
+
+
 def check_runtime_http(timeout: float) -> list[CheckResult]:
     results: list[CheckResult] = []
     for name, url, field in RUNTIME_HTTP_CHECKS:
@@ -150,7 +162,11 @@ def check_runtime_commands(timeout: float) -> list[CheckResult]:
         except json.JSONDecodeError:
             results.append(CheckResult("runtime", name, "FAIL", "non-json runtime output"))
             continue
-        results.append(runtime_status_to_result(name, payload))
+        # Diagnostic script has a different output format (list of checks)
+        if name == "gpt-provider-diagnostic":
+            results.extend(diagnose_result(name, payload))
+        else:
+            results.append(runtime_status_to_result(name, payload))
     return results
 
 

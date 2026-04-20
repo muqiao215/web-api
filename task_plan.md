@@ -90,11 +90,11 @@ This plan is for architecture and implementation sequencing only. It does not re
 
 ### Phase 5: Observability & Admin Surface
 
-- [ ] Extend `packages/ops_doctor` to check account pool, queue depth, artifact writeability, latest task, and `sub2api` route status.
-- [ ] Add `packages/audit_log` or a shared audit schema before building UI-heavy admin features.
+- [x] Extend `packages/ops_doctor` to check account pool, queue depth, artifact writeability, latest task, and `sub2api` route status. *(Phase 5A)*
+- [x] Add `packages/audit_log` — JSONL append-only audit logger aligned with `audit-event.schema.json`. *(Phase 5A)*
 - [x] Expand `apps/control-workbench` into a lightweight control surface for provider health, queues, artifacts, and audit logs. *(Phase 5B: skeleton + 23 tests)*
 - [ ] Defer billing, payment, and public SaaS user management until task/artifact/account models are stable.
-- **Status:** partial — control-workbench skeleton done; ops_doctor extension and audit_log deferred to Phase 5 full.
+- **Status:** partial — Phase 5A (ops_doctor + audit_log) and Phase 5B (control-workbench) complete; billing/deferred items deferred.
 
 ### Phase 6: Verification & Cutover
 

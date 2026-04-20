@@ -142,23 +142,36 @@
 
 ### Phase 5: Observability & Admin Surface
 
-- **Status:** partial — Phase 5B complete; full phase deferred
-- **Phase 5B:** control-workbench skeleton + canvas-to-api vocabulary alignment
-- Actions taken:
+- **Status:** partial — Phase 5A and Phase 5B complete; billing/deferred items deferred.
+- **Phase 5A:** ops_doctor extension + audit_log package.
+- **Phase 5B:** control-workbench skeleton + canvas-to-api vocabulary alignment (completed in prior session).
+- Phase 5A actions taken:
+  - Created `packages/audit_log/src/index.mjs` — JSONL append-only audit logger factory (`createAuditLogger({ dataDir, validate, enrich })`). Writes one JSON object per line to `{dataDir}/audit.jsonl`. Auto-fills `contract_version`, `id`, `timestamp`, `actor.type` when `enrich=true`. `query({ event_type, actor_type, since, limit })` supports temporal and type filtering. `enrichEvent` now accepts `{ enrich }` option to allow validation of raw partials before auto-fill.
+  - Created `packages/ops_doctor/src/diagnose.mjs` — Node.js diagnostic companion script called by Python CLI as subprocess. Checks: `output_dir_writable` (try-write test with timestamped temp file), `jobs_json` (summary counts), `media_json` (artifact/legacy summary), `provider_pool_data` (if pool data path provided), `proxy_pool_data` (if proxy data path provided). Outputs JSON with `{ checks, timestamp, repo_root }`; exit 1 on any FAIL.
+  - Extended `packages/ops_doctor/src/web_capability_api_ops_doctor/cli.py` — added `gpt-provider-diagnostic` to `RUNTIME_COMMAND_CHECKS`; added `diagnose_result()` to parse nested check list from diagnostic JSON into individual `CheckResult` entries; routed diagnostic output to `diagnose_result()` instead of `runtime_status_to_result()`.
+  - Added `checkPathWritability` to `provider_admin_service.mjs` — `health()` now includes `path_checks.output_dir` and `path_checks.upload_dir` when `checkPathWritability` function is provided.
+  - Wired `checkPathWritability` into `providers/gpt-web-api/server.mjs` using timestamped test-file pattern.
+- Phase 5A files created/modified:
+  - `packages/audit_log/src/index.mjs` (new)
+  - `packages/audit_log/test/index.test.mjs` (new — 13 tests)
+  - `packages/ops_doctor/src/diagnose.mjs` (new)
+  - `packages/ops_doctor/test/diagnose.test.mjs` (new — 7 tests)
+  - `packages/ops_doctor/src/web_capability_api_ops_doctor/cli.py` (updated — diagnose integration)
+  - `providers/gpt-web-api/services/provider_admin_service.mjs` (updated — checkPathWritability)
+  - `providers/gpt-web-api/server.mjs` (updated — checkPathWritability wiring)
+  - `task_plan.md` (Phase 5 checklist updated)
+  - `progress.md` (this entry)
+- Phase 5B (control-workbench) actions taken (prior session):
   - Created `apps/control-workbench/src/index.mjs` — read-only control surface that aggregates state from GPT admin service and canvas-to-api via HTTP. Exports `createControlBench()`, `normalizeGptHealth()`, `normalizeCanvasHealth()`, `buildSummary()`, and CLI `main()`. Aligns with `provider-capability.schema.json` and `queue-state.schema.json` vocabulary.
   - Updated `providers/canvas-to-api/runtime_status.mjs` — added `runtime_contract` field (status_schema, artifact_schema, queue_scope) aligned with `provider-capability.schema.json`; migrated `queue.pending/running/locks_active` to nested `queue.depth.{pending,running,completed,failed}` structure aligned with `queue-state.schema.json`; same migration applied to per-profile `inspectProfile()` queue blocks.
   - Fixed `buildSummary()` overall rollup: `degraded` is no longer counted as "healthy" — priority ordering is now unreachable > error > blocked > degraded > mixed > ok.
   - Added 23 unit tests for control-workbench (normalizeGptHealth, normalizeCanvasHealth, buildSummary coverage).
-- Files created/modified:
+- Phase 5B files created/modified:
   - `apps/control-workbench/src/index.mjs` (new)
   - `apps/control-workbench/package.json` (updated — added main, exports, engines)
   - `apps/control-workbench/test/index.test.mjs` (new — 23 tests)
   - `providers/canvas-to-api/runtime_status.mjs` (updated — runtime_contract, queue.depth structure)
-  - `task_plan.md` (Phase 5 partial update)
-  - `progress.md` (this entry)
 - Deferred:
-  - `packages/ops_doctor` extension for account pool / queue depth / artifact writeability checks.
-  - `packages/audit_log` package or shared audit schema.
   - Billing, payment, SaaS user management.
 
 ### Phase 6: Verification & Cutover
@@ -183,6 +196,8 @@
 | Phase 4 provider_pool | `packages/provider_pool/test/index.test.mjs` | All 13 pass | All 13 pass | pass |
 | Phase 4 proxy_pool | `packages/proxy_pool/test/index.test.mjs` | All 8 pass | All 8 pass | pass |
 | Phase 4 job_queue | `packages/job_queue/test/index.test.mjs` | All 11 pass | All 11 pass | pass |
+| Phase 5A audit_log | `packages/audit_log/test/index.test.mjs` | All 13 pass | All 13 pass (validateEvent 4, log/list/query 7, throws on invalid 2) | pass |
+| Phase 5A diagnose.mjs | `packages/ops_doctor/test/diagnose.test.mjs` | All 7 pass | All 7 pass (exit 0, output_dir_writable, jobs_json, media_json, --jobs override, JSON-only, repo_root) | pass |
 | Phase 5B control-workbench | `apps/control-workbench/test/index.test.mjs` | All 23 pass | All 23 pass (normalizeGptHealth 6, normalizeCanvasHealth 7, buildSummary 10) | pass |
 
 ## Error Log
@@ -203,12 +218,16 @@
 | 2026-04-20 Phase 4 | provider_admin_service pool accessor used `getPoolPolicy()?.provider` (pool policy has no provider field) | 1 | Added `getProvider()` method to provider_pool and proxy_pool; updated admin service to use it |
 | 2026-04-20 Phase 5B | buildSummary: `degraded` was counted as "healthy" via `totalHealthy = ok+degraded` — `[ok, degraded]` reported overall="ok" | 1 | Changed `buildSummary` to use strict priority ordering: unreachable > error > blocked > degraded > mixed > ok; updated two tests to match corrected logic |
 | 2026-04-20 Phase 5B | normalizeCanvasHealth read `raw.queue.pending` after canvas-to-api was updated to use `queue.depth.pending` | 1 | Updated normalizeCanvasHealth to read `raw.queue.depth.pending` and `raw.queue.depth.running` to match the new canvas-to-api vocabulary |
+| 2026-04-20 Phase 5A | diagnose test: all 7 tests failing with "Could not find test/diagnose.test.mjs" | 1 | Root cause: `import.meta.dirname` equals CWD at invocation, not test file's directory. DIAGNOSE path resolved via `new URL("src/diagnose.mjs", import.meta.url)` gave wrong path. Fix: use `path.dirname(fileURLToPath(import.meta.url))` for reliable test-file-relative path resolution. |
+| 2026-04-20 Phase 5A | audit_log test 10: query(since) returned 2 events instead of 1 | 1 | Root cause: evt_new's auto-filled timestamp (now) satisfies `>= before`, same as evt_old's explicit timestamp (before). Fix: capture evt_new's actual timestamp from log() return value and use it as `since` filter so only evt_new (timestamp=now) satisfies `>= now`. |
+| 2026-04-20 Phase 5A | audit_log test 11: "Missing expected exception" — enrich=true auto-filled id/event_type/actor before validation | 1 | Root cause: `enrichEvent()` always auto-filled missing required fields regardless of `enrich` flag. Fix: refactored `enrichEvent(event, { enrich })` to accept enrich option; when `enrich=false` it returns raw event with contract_version only. Test passes `enrich: false` to createAuditLogger. |
+| 2026-04-20 Phase 5A | audit_log test 11 follow-up: enrichEvent still auto-filled even after adding { enrich } param | 1 | log() called `enrichEvent(partial)` without passing the `enrich` flag. Fixed: `enrichEvent(partial, { enrich })` now passes the flag through. |
 
 ## 5-Question Reboot Check
 
 | Question | Answer |
 |----------|--------|
-| Where am I? | Phase 4 complete; Phase 5B in progress; control-workbench skeleton implemented (23 tests), canvas-to-api vocabulary aligned with queue-state.schema.json. |
+| Where am I? | Phase 5A complete (ops_doctor extension + audit_log, 20 tests); Phase 5B complete (control-workbench 23 tests). All Phase 1-5B implementation done; Phase 6 (verification/cutover) pending. |
 | Where am I going? | Phase 5 builds observability & admin surface (ops_doctor, audit_log, control-workbench). |
 | What's the goal? | Productize `web_capability_api` using `gpt2api` strengths while keeping `sub2api` integration architecture. |
 | What have I learned? | See `findings.md`. |

@@ -14,6 +14,8 @@ export function createProviderAdminService({
   // Phase 4: optional pool integrations — backward-compatible (null when not wired yet)
   providerPool = null,
   proxyPool = null,
+  // Phase 5A: optional path check — receives a string path, returns { writable: bool, error?: string }
+  checkPathWritability = null,
 }) {
   function queueMetrics() {
     const stats = getQueueStats() || {};
@@ -151,6 +153,15 @@ export function createProviderAdminService({
         total: proxyPool.listProxies?.()?.length ?? 0,
         healthy: proxyPool.getHealthyProxies?.()?.length ?? 0,
       };
+    }
+    // Phase 5A: path writability check
+    if (outputDir && typeof checkPathWritability === "function") {
+      result.path_checks = result.path_checks || {};
+      result.path_checks.output_dir = checkPathWritability(outputDir);
+    }
+    if (uploadDir && typeof checkPathWritability === "function") {
+      result.path_checks = result.path_checks || {};
+      result.path_checks.upload_dir = checkPathWritability(uploadDir);
     }
     return result;
   }
