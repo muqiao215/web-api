@@ -230,11 +230,37 @@
 
 ### Phase 6: Verification & Cutover
 
-- **Status:** pending
+- **Status:** in-progress — verification slice complete
+- **Completed:** 2026-04-20
 - Actions taken:
-  - Not started.
+  - Created `packages/ops_doctor/src/phase6_verify.mjs` — Phase 6 smoke verification script.
+    - GPT worker smoke: fetches `http://127.0.0.1:4242/health`, validates runtime_contract shape.
+      - Result: PASS — GPT admin service reachable with `service_alive=true`, `cdp_ready=true`, `browser_connected=true`.
+    - sub2api smoke: fetches `http://127.0.0.1:18080/health`, validates reachability + basic health object.
+      - Result: PASS — sub2api reachable at HTTP 200, returns `{"status":"ok"}` (note: shape differs from control-workbench's `normalizeSub2apiHealth` — external sub2api config issue, documented in task_plan.md Phase 6 section).
+    - Canvas smoke: detects `systemctl` calls in `runtime_status.mjs` source without running it.
+      - Result: BLOCKED — `systemctl is-active` on 3 systemd units violates "do not touch live systemd services" constraint.
+  - Added 3 GPT worker smoke tests to `providers/gpt-web-api/test/provider_admin_service.test.mjs`:
+    - `health()` returns runtime_contract aligned with provider-capability.schema.json (service_alive, logged_in, cdp_ready, browser_connected, blocked_by, queue, capabilities, providers[]).
+    - Browser failure maps to `status=blocked` via runtime_contract.service_alive=false.
+    - `getProviderDetail` returns model_details with capability metadata for sub2api model routing.
+  - Added 3 gpt-web-responses shim smoke tests to `shims/gpt-web-responses/test/gpt_web_responses_shim.test.mjs`:
+    - `/health` returns expected shape (status, shim, upstream_base_url, default_model).
+    - `/healthz` returns same shape.
+    - `/v1/chat/completions` routes to upstream and correctly transforms response.
+  - Created `packages/ops_doctor/test/phase6_verify.test.mjs` — 9 tests verifying the verification script itself (no systemctl spawning, node: modules only, systemd calls detected, exit code logic, canvas blocker documented).
+- Phase 6 blockers/deferred:
+  - Canvas: `runtime_status.mjs` requires systemd → BLOCKED. Fix: extract read-only CDP checks to separate no-systemd script, or use canvas-to-api thin HTTP /health as smoke entry point.
+  - sub2api shape discrepancy: running sub2api returns `{"status":"ok"}` — different from control-workbench's expected shape. Deferred: align `normalizeSub2apiHealth` when sub2api config is managed in this repo.
+  - Rollback paths for systemd runtime cutover: deferred (no systemd cutover planned yet).
+  - Promote only verified builds: deferred (requires verified runtime first).
 - Files created/modified:
-  - None yet.
+  - `packages/ops_doctor/src/phase6_verify.mjs` (new — Phase 6 smoke verification script)
+  - `packages/ops_doctor/test/phase6_verify.test.mjs` (new — 9 tests for the verification script)
+  - `providers/gpt-web-api/test/provider_admin_service.test.mjs` (updated — +3 GPT worker smoke tests, 7 total)
+  - `shims/gpt-web-responses/test/gpt_web_responses_shim.test.mjs` (updated — +3 shim smoke tests, 7 total)
+  - `task_plan.md` (Phase 6 checklist updated with findings)
+  - `progress.md` (this entry)
 
 ## Test Results
 
@@ -258,6 +284,10 @@
 | Phase 5E control-workbench v3 enrichment | `apps/control-workbench/test/index.test.mjs` | All 38 pass | All 38 pass (added 6: GPT runtime_contract fields 4, canvas thin/rich auto-detect 2) | pass |
 | Phase 5E sub2api normalizer fix | `apps/control-workbench/test/index.test.mjs` | All 38 pass | All 38 pass (updated 3 sub2api tests to use actual `status` field; no new tests added — existing tests corrected) | pass |
 | Phase 5D ops_doctor historical vs active | `packages/ops_doctor/test/diagnose.test.mjs` | All 11 pass | All 11 pass (4 new: historical failures OK, active running OK, active queued OK, mixed only active affects health) | pass |
+| Phase 6 GPT worker smoke | `providers/gpt-web-api/test/provider_admin_service.test.mjs` | All 7 pass | All 7 pass (+3 new: runtime_contract shape, browser failure mapping, model capability metadata) | pass |
+| Phase 6 shim smoke | `shims/gpt-web-responses/test/gpt_web_responses_shim.test.mjs` | All 7 pass | All 7 pass (+3 new: /health, /healthz, /v1/chat/completions integration) | pass |
+| Phase 6 phase6_verify script | `packages/ops_doctor/test/phase6_verify.test.mjs` | All 9 pass | All 9 pass (source analysis: no systemctl spawn, node: modules only, systemd calls detected, exit code logic correct, canvas blocker documented) | pass |
+| Phase 6 runtime verification | `packages/ops_doctor/src/phase6_verify.mjs` | Exit 0 (GPT+sub2api pass, canvas BLOCKED) | GPT: PASS (service_alive=true, cdp_ready=true, browser_connected=true); sub2api: PASS (HTTP 200, {"status":"ok"}); canvas: BLOCKED (systemd constraint); exit=0 | pass |
 
 ## Error Log
 
@@ -282,8 +312,10 @@
 | 2026-04-20 Phase 5A | audit_log test 11: "Missing expected exception" — enrich=true auto-filled id/event_type/actor before validation | 1 | Root cause: `enrichEvent()` always auto-filled missing required fields regardless of `enrich` flag. Fix: refactored `enrichEvent(event, { enrich })` to accept enrich option; when `enrich=false` it returns raw event with contract_version only. Test passes `enrich: false` to createAuditLogger. |
 | 2026-04-20 Phase 5A | audit_log test 11 follow-up: enrichEvent still auto-filled even after adding { enrich } param | 1 | log() called `enrichEvent(partial)` without passing the `enrich` flag. Fixed: `enrichEvent(partial, { enrich })` now passes the flag through. |
 | 2026-04-20 Phase 5E (follow-up) | normalizeSub2apiHealth checked `raw.ok` but live sub2api `/health` returns `{"status":"ok"}` | 1 | Changed to read `raw.status` instead of `raw.ok`; maps `status === "ok"` → `"ok"`, else → `"error"`; `runtime` set to `null` since no richer safe endpoints exist. |
-| 2026-04-20 Phase 5A | audit_log test 11: "Missing expected exception" — enrich=true auto-filled id/event_type/actor before validation | 1 | Root cause: `enrichEvent()` always auto-filled missing required fields regardless of `enrich` flag. Fix: refactored `enrichEvent(event, { enrich })` to accept enrich option; when `enrich=false` it returns raw event with contract_version only. Test passes `enrich: false` to createAuditLogger. |
-| 2026-04-20 Phase 5A | audit_log test 11 follow-up: enrichEvent still auto-filled even after adding { enrich } param | 1 | log() called `enrichEvent(partial)` without passing the `enrich` flag. Fixed: `enrichEvent(partial, { enrich })` now passes the flag through. |
+| 2026-04-20 Phase 6 | phase6_verify.test.mjs "must not call systemctl" assertion failing even though script only has systemctl in error strings | 1 | Changed assertion from `!source.includes("systemctl")` to `!source.includes('spawnSync')` and `!source.includes('spawn("systemctl"') / !source.includes("spawn('systemctl'")` — allows string documentation of systemctl without spawning it |
+| 2026-04-20 Phase 6 | phase6_verify.test.mjs "Canvas has no systemd gate" TypeError: /\.some is not a function | 1 | `RegExp` object doesn't have `.some()` (array method). Replaced with string `includes()` checks: `!source.includes("NO_SYSTEMD")` etc. |
+| 2026-04-20 Phase 6 | gpt_web_responses_shim.test.mjs HTTP tests: "Unexpected end of JSON" — overriding `res.write` didn't capture payload | 1 | Shim's `json()` calls `res.end(payload)` directly, not `res.write` then `res.end`. Fixed: override `res.end = function(chunk) { ... }` to capture the final serialized payload |
+| 2026-04-20 Phase 6 | gpt_web_responses_shim.test.mjs /v1/chat/completions test hanging forever | 1 | IncomingMessage mock doesn't auto-emit data events when manually `req.emit("data", ...)`. Rewrote as real HTTP integration test using `http.createServer` (upstream echo on real port) + `http.request` (client through shim on real port) with proper server lifecycle and 8s timeout |
 
 ## 5-Question Reboot Check
 

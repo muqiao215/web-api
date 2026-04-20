@@ -214,3 +214,165 @@ test("Provider admin service attaches pool status when pool packages are wired (
   assert.equal(detail.account_pool.available_accounts, 1);
   assert.equal(detail.proxy_pool.total_proxies, 2);
 });
+
+// ─── Phase 6: Worker smoke tests ─────────────────────────────────────────────────
+
+test("Provider admin service health() returns runtime_contract aligned with provider-capability.schema.json", async () => {
+  // Smoke test: verify the health output shape matches what control-workbench
+  // and sub2api expect. This is the primary worker smoke entry point.
+  const router = new ProviderRouter();
+  router.register(createProvider("chatgpt-web", ["chatgpt-web", "chatgpt-images"], {
+    chat: true, images: true, streaming: true,
+  }), { isDefault: true });
+
+  const service = createProviderAdminService({
+    providerRouter: router,
+    inspectBrowserReadiness: async () => ({
+      ok: true, browser: "Chrome/1.0", websocket_debugger_url: "ws://127.0.0.1/devtools/browser/test",
+    }),
+    inspectRuntimeStatus: async () => ({
+      contract_version: "wcapi.browser_worker_runtime.v1",
+      provider_id: "chatgpt-web",
+      provider_type: "browser-session",
+      status: "ok",
+      service_alive: true,
+      logged_in: true,
+      cdp_ready: true,
+      browser_connected: true,
+      browserConnected: true,
+      blocked_by: "none",
+      queue: { supported: true, mode: "profile-serial", pending: 0, running: 0, locks_active: 0 },
+      capabilities: { chat: true, images: true, streaming: true, files: true, vision: true },
+    }),
+    getQueueDepth: () => 0,
+    getQueueStats: () => ({ pending: 0, running: 0, total: 0 }),
+    getSessionLockCount: () => 0,
+    jobsPath: "/tmp/jobs.json",
+    sessionAffinityPath: "/tmp/session_affinity.json",
+    mediaPath: "/tmp/media.json",
+    outputDir: "/tmp/generated",
+    uploadDir: "/tmp/uploads",
+    cdpHttp: "http://127.0.0.1:9222",
+  });
+
+  const health = await service.health();
+
+  // Critical fields for sub2api routing and control-workbench aggregation
+  assert.equal(health.ok, true, "health.ok must be boolean");
+  assert.equal(health.service, "gpt_web_api", "service name must be gpt_web_api");
+  assert.equal(typeof health.provider_count, "number", "provider_count must be number");
+  assert.equal(health.provider_count, 1, "provider_count must be 1 for single-provider setup");
+
+  // runtime_contract is the primary smoke payload — must be present and well-structured
+  assert.ok(health.runtime_contract, "runtime_contract must be present");
+  assert.equal(health.runtime_contract.contract_version, "wcapi.browser_worker_runtime.v1");
+  assert.equal(typeof health.runtime_contract.status, "string", "runtime_contract.status must be string");
+  assert.equal(typeof health.runtime_contract.service_alive, "boolean", "runtime_contract.service_alive must be boolean");
+  assert.equal(typeof health.runtime_contract.logged_in, "boolean", "runtime_contract.logged_in must be boolean");
+  assert.equal(typeof health.runtime_contract.cdp_ready, "boolean", "runtime_contract.cdp_ready must be boolean");
+  assert.equal(typeof health.runtime_contract.browser_connected, "boolean", "runtime_contract.browser_connected must be boolean");
+  assert.equal(typeof health.runtime_contract.blocked_by, "string", "runtime_contract.blocked_by must be string");
+
+  // providers descriptor list — used by control-workbench for capability reporting
+  assert.ok(Array.isArray(health.providers), "providers must be array");
+  assert.equal(health.providers[0].id, "chatgpt-web");
+  assert.ok(Array.isArray(health.providers[0].models), "provider models must be array");
+  assert.equal(health.providers[0].models[0], "chatgpt-web");
+
+  // paths — used by ops_doctor diagnose.mjs for file-based checks
+  assert.equal(health.jobs_path, "/tmp/jobs.json");
+  assert.equal(health.image_output_dir, "/tmp/generated");
+
+  // queue metrics
+  assert.equal(typeof health.queue_depth, "number");
+});
+
+test("Provider admin service health() maps browser readiness failure to blocked status via runtime_contract", async () => {
+  // When browser is disconnected, runtime_contract.service_alive should be false
+  // and health status should reflect blocked.
+  const router = new ProviderRouter();
+  router.register(createProvider("chatgpt-web", ["chatgpt-web"]), { isDefault: true });
+
+  const service = createProviderAdminService({
+    providerRouter: router,
+    inspectBrowserReadiness: async () => ({ ok: false, error: "CDP unreachable" }),
+    inspectRuntimeStatus: async () => ({
+      contract_version: "wcapi.browser_worker_runtime.v1",
+      provider_id: "chatgpt-web",
+      status: "blocked",
+      service_alive: false,
+      logged_in: null,
+      cdp_ready: false,
+      browser_connected: false,
+      browserConnected: false,
+      blocked_by: "browser_session",
+      queue: { supported: true, mode: "profile-serial", pending: 0, running: 0 },
+    }),
+    getQueueDepth: () => 0,
+    getQueueStats: () => ({ pending: 0, running: 0, total: 0 }),
+    getSessionLockCount: () => 0,
+    jobsPath: "/tmp/jobs.json",
+    sessionAffinityPath: "/tmp/session_affinity.json",
+    mediaPath: "/tmp/media.json",
+    outputDir: "/tmp/generated",
+    uploadDir: "/tmp/uploads",
+    cdpHttp: "http://127.0.0.1:9222",
+  });
+
+  const health = await service.health();
+
+  // The worker should still return a response even when browser is down
+  // (this is the smoke — it proves the worker process is alive)
+  assert.equal(health.ok, true, "worker process is alive even when browser disconnected");
+  assert.equal(health.runtime_contract.service_alive, false, "service_alive=false when browser disconnected");
+  assert.equal(health.runtime_contract.blocked_by, "browser_session");
+  assert.equal(health.runtime_contract.browser_connected, false);
+});
+
+test("Provider admin service getProviderDetail returns all models with capability metadata", async () => {
+  // Smoke test: verify the provider detail includes model-level capability metadata
+  // which is what sub2api uses for model-level routing decisions.
+  const router = new ProviderRouter();
+  router.register(createProvider("chatgpt-web", ["chatgpt-web", "chatgpt-images"], {
+    chat: true, images: true,
+  }), { isDefault: true });
+
+  const service = createProviderAdminService({
+    providerRouter: router,
+    inspectBrowserReadiness: async () => ({ ok: true }),
+    inspectRuntimeStatus: async () => ({
+      contract_version: "wcapi.browser_worker_runtime.v1",
+      provider_id: "chatgpt-web",
+      status: "ok",
+      service_alive: true,
+      logged_in: true,
+      cdp_ready: true,
+      browser_connected: true,
+      browserConnected: true,
+      blocked_by: "none",
+      queue: { supported: true, mode: "profile-serial", pending: 0, running: 0 },
+    }),
+    getQueueDepth: () => 0,
+    getQueueStats: () => ({ pending: 0, running: 0, total: 0 }),
+    getSessionLockCount: () => 0,
+    jobsPath: "/tmp/jobs.json",
+    sessionAffinityPath: "/tmp/session_affinity.json",
+    mediaPath: "/tmp/media.json",
+    outputDir: "/tmp/generated",
+    uploadDir: "/tmp/uploads",
+    cdpHttp: "http://127.0.0.1:9222",
+  });
+
+  const detail = await service.getProviderDetail("chatgpt-web");
+
+  // Model details must include id and owned_by for sub2api model routing
+  assert.ok(Array.isArray(detail.model_details), "model_details must be array");
+  const imageModel = detail.model_details.find((m) => m.id === "chatgpt-images");
+  assert.ok(imageModel, "chatgpt-images must be in model_details");
+  assert.equal(imageModel.owned_by, "chatgpt-web-owner");
+  assert.equal(imageModel.provider, "chatgpt-web");
+
+  // Capability metadata at provider level
+  assert.ok(detail.capabilities, "provider capabilities must be present");
+  assert.equal(detail.capabilities.images, true);
+});
