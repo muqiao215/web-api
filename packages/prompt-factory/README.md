@@ -15,10 +15,12 @@
 ## 目录
 
 - `adapters/`：源适配器，负责把不同 repo / runtime JSON 读成统一记录
+- `sources/`：源注册表；当前由 `sources/source_registry.json` 声明可同步上游
 - `taxonomies/`：平台/分类映射
 - `transforms/`：组合层说明；当前已实现 Toloka keyword composer
 - `rules/`：导出与过滤策略约定
 - `builds/`：构建产物
+- `state/`：本地同步/构建/发布状态，默认不入 git
 - `bridges/`：bot 消费路径与迁移说明
 - `tests/`：schema/build/export smoke tests
 
@@ -65,6 +67,46 @@ uv run --project /root/.ductor/workspace/web_capability_api/packages/prompt-fact
 - `builds/runtime_bridge/providers/banana/banana_prompts.json`
 - `builds/*/indices/used_prompt_ids.seed.json`
 
+现在除了 `build`，还支持 3 个持久化命令：
+
+```bash
+uv run --project /root/.ductor/workspace/web_capability_api/packages/prompt-factory \
+  prompt-factory sync
+
+uv run --project /root/.ductor/workspace/web_capability_api/packages/prompt-factory \
+  prompt-factory diff --profile local_repos
+
+uv run --project /root/.ductor/workspace/web_capability_api/packages/prompt-factory \
+  prompt-factory promote --profile local_repos
+```
+
+含义分别是：
+
+- `sync`
+  - 对 git 源做 `fetch + ff-only` 更新
+  - 对 file snapshot 源记录 `sha256/size/mtime`
+  - 脏工作树不会强拉，会标记为 `blocked`
+- `diff`
+  - 默认优先比较“当前 build”与“已 promote 的 stable”
+  - 如果还没 stable，则回退比较“上一次 build”
+  - `--baseline previous` 会读取 `state/build_snapshots/<profile>/...` 里的不可变归档，而不是被覆盖的 live build
+  - 输出 prompt 增减、source_count delta、source revision 变化
+- `promote`
+  - 把当前 profile 的 build 复制到 `builds/promoted/<profile>/`
+  - 作为后续消费者应优先读取的稳定版本
+
+cron 友好的状态文件会写到 `state/`：
+
+- `state/source_state.json`
+- `state/last_sync_status.json`
+- `state/build_history.jsonl`
+- `state/build_snapshots/<profile>/<build-id>/manifest.json`
+- `state/last_build_status.json`
+- `state/last_diff_status.json`
+- `state/last_promote_status.json`
+
+每次 `build` 仍会覆盖 `builds/<profile>/` 下的 live 输出，但会同时把 manifest 与 provider export 复制一份到 `state/build_snapshots/`。这让定时任务可以安全做 `diff --baseline previous`，不会因为 live 文件被新 build 覆盖而失去上一轮证据。
+
 `local_repos` 现在已经会把 `prompt-pack.tmp` 作为真实 source adapter 处理：
 
 - 优先读取 repo 内本地 CSV 导出
@@ -84,6 +126,8 @@ uv run --project /root/.ductor/workspace/web_capability_api/packages/prompt-fact
 - 保留 provider-specific export，避免后续 bot/API/showcase 再各自重新清洗
 - 默认过滤人物/人像与 reference-required prompt；如需放开，可用 CLI 开关
 - `runtime_bridge` 解决“今天就能接上现有运行时”；`local_repos` 解决“以后能从源仓库重建”
+- `sync` 只允许 fast-forward，不替你解决源仓库的本地脏改动
+- `promote` 把“最新 build”和“稳定可消费版本”分开，避免上游脏更新直接进生产
 
 ## 后续桥接
 

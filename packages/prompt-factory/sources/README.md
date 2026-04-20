@@ -11,6 +11,19 @@
 - 运行时桥接源
   - `telegram_gpt_image_bot/state/prompt_pool.json`
 
+真正的同步注册表在 [source_registry.json](/root/.ductor/workspace/web_capability_api/packages/prompt-factory/sources/source_registry.json)。
+
+字段约定：
+
+- `source_id`：CLI / manifest / state 文件里的稳定标识
+- `sync_mode`
+  - `git_repo`
+  - `file_snapshot`
+- `workspace_path`：相对 workspace root 的路径
+- `origin_url` / `branch`：仅 git 源需要
+
+当前 `sync` 不会替你处理脏工作树；如果源 repo 有本地修改，会标记成 `blocked`，等你决定是保留改动还是先清理。
+
 `prompt-pack.tmp` 已有 direct adapter：
 
 - repo 内若存在 CSV 导出，则直接本地 ingest

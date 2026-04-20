@@ -17,6 +17,9 @@
     "doctor": "uv run --project packages/ops_doctor wcapi-doctor",
     "doctor:strict": "uv run --project packages/ops_doctor wcapi-doctor --strict",
     "check:layout": "test -f README.md && test -d providers && test -d shims && test -d packages && test -d ops",
-    "prompt:build": "uv run --project packages/prompt-factory prompt-factory build --profile all"
+    "prompt:sync": "uv run --project packages/prompt-factory prompt-factory sync",
+    "prompt:build": "uv run --project packages/prompt-factory prompt-factory build --profile all",
+    "prompt:diff": "uv run --project packages/prompt-factory prompt-factory diff --profile local_repos",
+    "prompt:promote": "uv run --project packages/prompt-factory prompt-factory promote --profile local_repos"
   }
 }

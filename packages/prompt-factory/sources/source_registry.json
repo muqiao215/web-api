@@ -1,0 +1,51 @@
+{
+  "schema": "prompt-factory-source-registry.v1",
+  "sources": [
+    {
+      "source_id": "youmind",
+      "label": "YouMind AI Image Prompts Skill",
+      "sync_mode": "git_repo",
+      "workspace_path": "ai-image-prompts-skill.J5v2Vt",
+      "origin_url": "https://github.com/YouMind-OpenLab/ai-image-prompts-skill.git",
+      "branch": "main"
+    },
+    {
+      "source_id": "toloka",
+      "label": "Toloka BestPrompts",
+      "sync_mode": "git_repo",
+      "workspace_path": "BestPrompts.tmp",
+      "origin_url": "https://github.com/Toloka/BestPrompts.git",
+      "branch": "main"
+    },
+    {
+      "source_id": "stable_diffusion",
+      "label": "Stable Diffusion Prompt Templates",
+      "sync_mode": "git_repo",
+      "workspace_path": "stable-diffusion-prompt-templates.ASMlaX",
+      "origin_url": "https://github.com/Dalabad/stable-diffusion-prompt-templates.git",
+      "branch": "main"
+    },
+    {
+      "source_id": "prompt_pack",
+      "label": "HoppyCat Prompt Pack",
+      "sync_mode": "git_repo",
+      "workspace_path": "prompt-pack.tmp",
+      "origin_url": "https://github.com/HoppyCat/prompt-pack.git",
+      "branch": "main"
+    },
+    {
+      "source_id": "awesome_gpt_image_2",
+      "label": "Awesome GPT Image 2 Prompts",
+      "sync_mode": "git_repo",
+      "workspace_path": "awesome-gpt-image-2-prompts",
+      "origin_url": "https://github.com/EvoLinkAI/awesome-gpt-image-2-prompts.git",
+      "branch": "main"
+    },
+    {
+      "source_id": "runtime_bridge",
+      "label": "telegram_gpt_image_bot runtime prompt pool",
+      "sync_mode": "file_snapshot",
+      "workspace_path": "telegram_gpt_image_bot/state/prompt_pool.json"
+    }
+  ]
+}
