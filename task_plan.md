@@ -69,8 +69,10 @@ This plan is for architecture and implementation sequencing only. It does not re
 - [x] Document jobs.json → image-task normalization gaps (artifact_id, width, height, sha256 not yet in write path).
 - [x] Document media.json legacy format (object: "media", output_path) — normalized to ArtifactRecord before validation.
 - [x] Add `account_id`, `profile_lock`, `lease` nullable fields to GPT worker admin health (`provider_admin_service.mjs`).
-- [ ] Align `providers/gpt-web-api/data/jobs.json` write path with image-task schema (Phase 4+).
-- [ ] Align `providers/gpt-web-api/data/media.json` write path to ArtifactRecord schema (Phase 4+).
+- [x] Close GPT provider write path: `generateImage()` in `browser_runtime.mjs` now returns `artifact_id`, `width`, `height`, `sha256` — aligned with image-task.outputs schema.
+- [x] Migrate existing `jobs.json` historical records via `migrate_jobs_image_results.mjs` (deterministic artifact_id, SHA-256 computed from file, PNG/JPEG dimensions parsed from file header).
+- [x] `validate_runtime.mjs` now exits 0 with all image-gen jobs fully validated against image-task schema.
+- [ ] Align `providers/gpt-web-api/data/media.json` write path to full ArtifactRecord schema (Phase 4+).
 - [ ] Add the same queue/profile-lock vocabulary to Gemini Canvas worker docs and future runtime wrappers.
 - [ ] Keep provider-specific implementation details behind adapters.
 - **Status:** complete

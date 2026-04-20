@@ -90,9 +90,26 @@
 
 | File | Finding | Action |
 |------|---------|--------|
-| `jobs.json` | `result[]` items have `output_path`/`mime_type` but no `artifact_id`, `width`, `height`, `sha256` | Write path update deferred to Phase 4 (JobQueue / MediaStore) |
+| `jobs.json` | `result[]` items have `output_path`/`mime_type` but no `artifact_id`, `width`, `height`, `sha256` | Closed: `generateImage()` in `browser_runtime.mjs` now computes and returns these fields; existing records migrated via `migrate_jobs_image_results.mjs` |
 | `media.json` | Uses legacy `object: "media"` and `output_path` — pre-ArtifactRecord schema | Normalized to ArtifactRecord format in validate_runtime.mjs; re-write via MediaStore in Phase 4+ |
 | `provider_admin_service.mjs` | Missing `account_id`, `profile_lock`, `lease` fields in admin health output | Added as nullable (null) with Phase 4 comment |
+
+### Phase 3 Write-Path Fix (Critical Follow-up)
+
+- **Status:** complete
+- **Completed:** 2026-04-20
+- Actions taken:
+  - Traced `generateImage()` in `browser_runtime.mjs` — found it returned only `{created, model, prompt, conversation_url, output_path, mime_type, image_url, alt}` without enrichment fields.
+  - Added `sha256()` helper (Node.js built-in `crypto.createHash`, no external deps) and `readImageDimensions()` helper (PNG IHDR chunk parsing at bytes 16-23, JPEG SOF0/SOF2 marker scanning).
+  - Updated `generateImage()` return to include `artifact_id`, `sha256`, `width`, `height` — all computed at write time when both `bytes.buffer` and `filepath` are available.
+  - Created `packages/provider_contracts/migrate_jobs_image_results.mjs` — idempotent one-time migration for historical `jobs.json` image-gen records. Generates deterministic `artifact_id` from `result.created + output_path` path hash. Computes SHA-256 and dimensions from actual files on disk. Second run: "No migration needed."
+  - Verified: `validate_runtime.mjs` now exits 0 with all 3 image-gen jobs fully validated.
+- Files created/modified:
+  - `providers/gpt-web-api/services/browser_runtime.mjs` (added sha256, readImageDimensions, enrichment in generateImage return)
+  - `providers/gpt-web-api/data/jobs.json` (migrated in place — 1 image-gen job enriched with artifact_id/sha256/width/height)
+  - `packages/provider_contracts/migrate_jobs_image_results.mjs` (new — idempotent migration script)
+  - `task_plan.md` (Phase 3 write-path items marked complete)
+  - `progress.md` (this entry)
 
 ### Phase 4: Pooling & Scheduling Layer
 
@@ -127,7 +144,8 @@
 | Phase 2 artifact alignment | `packages/provider_contracts/test/schemas.test.mjs` | All 22 tests pass | All 22 tests pass (added 5 tests: artifact-output basic+full, image-task $ref, artifact-record width/height/sha256 in metadata, conversion test) | pass |
 | Phase 3 schema suite | `packages/provider_contracts/test/schemas.test.mjs` | All 22 pass | All 22 pass | pass |
 | Phase 3 admin health | `providers/gpt-web-api/test/provider_admin_service.test.mjs` | All 3 pass (including 2 new tests) | All 3 pass | pass |
-| Phase 3 runtime validation | `packages/provider_contracts/validate_runtime.mjs` | Exit 0 (normalized) or 1 (gaps) | Exit 1 with KNOWN GAPs for jobs.json artifact_id/width/height/sha256 and NORM GAP for media.json legacy format (expected — deferred to Phase 4) | pass (documented gaps as expected) |
+| Phase 3 runtime validation | `packages/provider_contracts/validate_runtime.mjs` | Exit 0 (all valid) | Exit 0 with all 3 image-gen jobs fully validated (write-path fix complete) | pass |
+| Phase 3 migration script | `packages/provider_contracts/migrate_jobs_image_results.mjs` | Idempotent; second run "No migration needed" | Ran twice — second run exits 0 with "No migration needed" | pass |
 
 ## Error Log
 
@@ -141,12 +159,13 @@
 | 2026-04-20 Follow-up | JSON Schema `$ref` inside `allOf` with `additionalProperties: true` | 1 | Validated: `allOf: [{ $ref: "artifact-output.schema.json" }, { type: "object", properties: {...} }]` + `additionalProperties: true` on parent — composition works correctly; outputs items pass both the ref and the inline property constraints |
 | 2026-04-20 Phase 3 | `validate_runtime.mjs`: `result` referenced instead of `job.result` in normalizeJobToImageTask | 1 | Fixed to `job.result` |
 | 2026-04-20 Phase 3 | `validate_runtime.mjs`: typo `normNormalizedRecord` instead of `normalizedRecord` in media validation | 1 | Fixed variable name |
+| 2026-04-20 Phase 3 Write-Path | `generateImage()` in `browser_runtime.mjs` missing artifact_id, width, height, sha256 | 1 | Added sha256(), readImageDimensions() helpers; updated generateImage() return with enrichment fields |
 
 ## 5-Question Reboot Check
 
 | Question | Answer |
 |----------|--------|
-| Where am I? | Phase 3 complete; validate_runtime.mjs normalization/validation script created; admin health new fields added. |
+| Where am I? | Phase 3 complete; write-path fixed — generateImage() now returns artifact_id/sha256/width/height; validate_runtime.mjs exits 0. |
 | Where am I going? | Phase 4 builds the pooling & scheduling layer (provider_pool, proxy_pool, job_queue packages). |
 | What's the goal? | Productize `web_capability_api` using `gpt2api` strengths while keeping `sub2api` integration architecture. |
 | What have I learned? | See `findings.md`. |

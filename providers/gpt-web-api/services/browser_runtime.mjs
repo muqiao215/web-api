@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 
@@ -5,6 +6,43 @@ import { pickThinkingControlCandidate } from "./image_generation_modes.mjs";
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Compute SHA-256 hex digest of a Buffer.
+ * Uses Node.js built-in crypto — no external dependencies.
+ */
+function sha256(buffer) {
+  return crypto.createHash("sha256").update(buffer).digest("hex");
+}
+
+/**
+ * Read image dimensions from a file on disk.
+ * PNG: reads first 24 bytes to extract width/height from IHDR chunk (no external deps).
+ * JPEG: reads first bytes to find SOF0/SOF2 frame marker.
+ * Returns {width, height} or null if dimensions cannot be determined.
+ */
+async function readImageDimensions(filepath) {
+  const header = await fs.readFile(filepath, { length: 24 });
+  // PNG signature: 89 50 4E 47 0D 0A 1A 0A
+  if (header[0] === 0x89 && header[1] === 0x50 && header[2] === 0x4e && header[3] === 0x47) {
+    // PNG: width at bytes 16-19, height at bytes 20-23 (big-endian 32-bit)
+    const width = header.readUInt32BE(16);
+    const height = header.readUInt32BE(20);
+    return { width, height };
+  }
+  // JPEG: SOF0 (0xFF 0xC0) or SOF2 (0xFF 0xC2) — read more bytes to find it
+  if (header[0] === 0xff && header[1] === 0xd8) {
+    const full = await fs.readFile(filepath);
+    for (let i = 2; i < full.length - 1; i++) {
+      if (full[i] === 0xff && (full[i + 1] === 0xc0 || full[i + 1] === 0xc2)) {
+        const height = full.readUInt16BE(i + 5);
+        const width = full.readUInt16BE(i + 7);
+        return { width, height };
+      }
+    }
+  }
+  return null;
 }
 
 async function waitFor(page, expression, timeoutMs = 10000, intervalMs = 500) {
@@ -636,6 +674,14 @@ export function createBrowserRuntime({
       const filename = `chatgpt-image-${created}.png`;
       const filepath = path.join(outputDir, filename);
       await fs.writeFile(filepath, bytes.buffer);
+
+      // Compute enrichment fields (SHA-256, dimensions) from the written file.
+      // artifact_id is generated locally so it can be stored in both
+      // jobs.json result[] and media.json without requiring a write-path round-trip.
+      const artifact_id = `art_${created}_${Math.random().toString(36).slice(2, 10)}`;
+      const digest = sha256(bytes.buffer);
+      const dims = await readImageDimensions(filepath);
+
       return {
         created,
         model: "chatgpt-images",
@@ -645,6 +691,11 @@ export function createBrowserRuntime({
         mime_type: bytes.mimeType,
         image_url: state.image.src,
         alt: state.image.alt,
+        // New fields aligned with image-task.outputs / ArtifactOutput schema
+        artifact_id,
+        sha256: digest,
+        width: dims?.width ?? null,
+        height: dims?.height ?? null,
       };
     });
   }
