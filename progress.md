@@ -113,11 +113,32 @@
 
 ### Phase 4: Pooling & Scheduling Layer
 
-- **Status:** pending
+- **Status:** complete
+- **Started:** 2026-04-20
+- **Completed:** 2026-04-20
 - Actions taken:
-  - Not started.
+  - Created `packages/provider_pool`: account/profile registry with lease, health, cooldown, and selection primitives aligned with `account-pool.schema.json`.
+  - Created `packages/proxy_pool`: proxy registry with health score (0-1), failure tracking, and cooldown aligned with `proxy-pool.schema.json`.
+  - Created `packages/job_queue`: general async `JobQueue` + `ProfileSerialQueue` with lease semantics aligned with `queue-state.schema.json`.
+  - `createProviderPool()`: `selectAccount()`, `acquireLease()`, `releaseLease()`, `recordUsage()`, `updateHealth()`, `tick()`, `toJSON()` for file-backed persistence.
+  - `createProxyPool()`: `selectProxy()`, `recordSuccess()`, `recordFailure()`, `tick()`, `toJSON()` for file-backed persistence.
+  - `createProfileSerialQueue()`: `acquireLease()`/`releaseLease()` per profile, `listQueueStates()` returning schema-aligned queue states.
+  - Wired pool status into `provider_admin_service.mjs`: `getProviderDetail()` and `health()` now attach `account_pool` and `proxy_pool` summary objects when pools are provided (backward-compatible — pools are optional).
+  - Added 1 new test to `provider_admin_service.test.mjs` verifying pool status is attached when pools are wired.
 - Files created/modified:
-  - None yet.
+  - `packages/provider_pool/src/index.mjs` (new)
+  - `packages/provider_pool/package.json` (new)
+  - `packages/provider_pool/test/index.test.mjs` (new — 13 tests)
+  - `packages/proxy_pool/src/index.mjs` (new)
+  - `packages/proxy_pool/package.json` (new)
+  - `packages/proxy_pool/test/index.test.mjs` (new — 8 tests)
+  - `packages/job_queue/src/index.mjs` (new)
+  - `packages/job_queue/package.json` (new)
+  - `packages/job_queue/test/index.test.mjs` (new — 11 tests)
+  - `providers/gpt-web-api/services/provider_admin_service.mjs` (updated — pool wiring, backward-compatible)
+  - `providers/gpt-web-api/test/provider_admin_service.test.mjs` (updated — +1 pool integration test)
+  - `task_plan.md` (Phase 4 checklist updated)
+  - `progress.md` (this entry)
 
 ### Phase 5: Observability & Admin Surface
 
@@ -143,9 +164,12 @@
 | Phase 2 schema validation | `packages/provider_contracts/test/schemas.test.mjs` | All 17 tests pass | All 17 tests pass (original Phase 2 schemas) | pass |
 | Phase 2 artifact alignment | `packages/provider_contracts/test/schemas.test.mjs` | All 22 tests pass | All 22 tests pass (added 5 tests: artifact-output basic+full, image-task $ref, artifact-record width/height/sha256 in metadata, conversion test) | pass |
 | Phase 3 schema suite | `packages/provider_contracts/test/schemas.test.mjs` | All 22 pass | All 22 pass | pass |
-| Phase 3 admin health | `providers/gpt-web-api/test/provider_admin_service.test.mjs` | All 3 pass (including 2 new tests) | All 3 pass | pass |
+| Phase 3 admin health | `providers/gpt-web-api/test/provider_admin_service.test.mjs` | All 4 pass (including pool integration test) | All 4 pass | pass |
 | Phase 3 runtime validation | `packages/provider_contracts/validate_runtime.mjs` | Exit 0 (all valid) | Exit 0 with all 3 image-gen jobs fully validated (write-path fix complete) | pass |
 | Phase 3 migration script | `packages/provider_contracts/migrate_jobs_image_results.mjs` | Idempotent; second run "No migration needed" | Ran twice — second run exits 0 with "No migration needed" | pass |
+| Phase 4 provider_pool | `packages/provider_pool/test/index.test.mjs` | All 13 pass | All 13 pass | pass |
+| Phase 4 proxy_pool | `packages/proxy_pool/test/index.test.mjs` | All 8 pass | All 8 pass | pass |
+| Phase 4 job_queue | `packages/job_queue/test/index.test.mjs` | All 11 pass | All 11 pass | pass |
 
 ## Error Log
 
@@ -160,13 +184,16 @@
 | 2026-04-20 Phase 3 | `validate_runtime.mjs`: `result` referenced instead of `job.result` in normalizeJobToImageTask | 1 | Fixed to `job.result` |
 | 2026-04-20 Phase 3 | `validate_runtime.mjs`: typo `normNormalizedRecord` instead of `normalizedRecord` in media validation | 1 | Fixed variable name |
 | 2026-04-20 Phase 3 Write-Path | `generateImage()` in `browser_runtime.mjs` missing artifact_id, width, height, sha256 | 1 | Added sha256(), readImageDimensions() helpers; updated generateImage() return with enrichment fields |
+| 2026-04-20 Phase 4 | ESM packages used `require("node:fs")` instead of `import` | 1 | Replaced with top-level `import fs from "node:fs"` and `import path from "node:path"` in all three packages |
+| 2026-04-20 Phase 4 | job_queue stats test checked `summary.completed` but summary has `succeeded` | 1 | Fixed test to check `summary.succeeded`; `completed` exists only in per-profile depth tracking |
+| 2026-04-20 Phase 4 | provider_admin_service pool accessor used `getPoolPolicy()?.provider` (pool policy has no provider field) | 1 | Added `getProvider()` method to provider_pool and proxy_pool; updated admin service to use it |
 
 ## 5-Question Reboot Check
 
 | Question | Answer |
 |----------|--------|
-| Where am I? | Phase 3 complete; write-path fixed — generateImage() now returns artifact_id/sha256/width/height; validate_runtime.mjs exits 0. |
-| Where am I going? | Phase 4 builds the pooling & scheduling layer (provider_pool, proxy_pool, job_queue packages). |
+| Where am I? | Phase 4 complete; provider_pool, proxy_pool, job_queue packages scaffolded; pool status wired into GPT admin service (backward-compatible). |
+| Where am I going? | Phase 5 builds observability & admin surface (ops_doctor, audit_log, control-workbench). |
 | What's the goal? | Productize `web_capability_api` using `gpt2api` strengths while keeping `sub2api` integration architecture. |
 | What have I learned? | See `findings.md`. |
 | What have I done? | Created the persistent plan/finding/progress files. |

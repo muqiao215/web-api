@@ -1,0 +1,9 @@
+{
+  "name": "@web-capability-api/provider-pool",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Provider account/profile registry with lease, health, and cooldown tracking. Aligned with account-pool.schema.json.",
+  "main": "src/index.mjs",
+  "devDependencies": {}
+}

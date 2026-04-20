@@ -166,3 +166,51 @@ test("Provider admin service health output includes account_id, profile_lock, le
   assert.equal(healthOutput.profile_lock, null, "profile_lock is nullable — Phase 4 account pool");
   assert.equal(healthOutput.lease, null, "lease is nullable — Phase 4 account pool");
 });
+
+test("Provider admin service attaches pool status when pool packages are wired (Phase 4)", async () => {
+  const router = new ProviderRouter();
+  router.register(createProvider("chatgpt-web", ["chatgpt-web"]), { isDefault: true });
+
+  // Create a real provider_pool and proxy_pool
+  const { createProviderPool } = await import("../../../packages/provider_pool/src/index.mjs");
+  const { createProxyPool } = await import("../../../packages/proxy_pool/src/index.mjs");
+
+  const pool = createProviderPool({ provider: "chatgpt-web" });
+  pool.addAccount({ id: "acct_a", label: "Account A", priority: 10 });
+  pool.addAccount({ id: "acct_b", label: "Account B", priority: 5 });
+  pool.acquireLease("acct_a", "task_1", "worker-a");
+
+  const proxyPool = createProxyPool({ provider: "chatgpt-web" });
+  proxyPool.addProxy({ id: "px1", host: "1.2.3.4", port: 8080 });
+  proxyPool.addProxy({ id: "px2", host: "5.6.7.8", port: 8080 });
+  proxyPool.recordFailure("px1"); // score drops, still active
+
+  const service = createProviderAdminService({
+    providerRouter: router,
+    inspectBrowserReadiness: async () => ({ ok: true }),
+    inspectRuntimeStatus: async () => ({ status: "ok" }),
+    getQueueDepth: () => 0,
+    getQueueStats: () => ({ pending: 0, running: 0, total: 0 }),
+    getSessionLockCount: () => 0,
+    jobsPath: "/tmp/jobs.json",
+    sessionAffinityPath: "/tmp/session_affinity.json",
+    mediaPath: "/tmp/media.json",
+    outputDir: "/tmp/generated",
+    uploadDir: "/tmp/uploads",
+    cdpHttp: "http://127.0.0.1:9222",
+    providerPool: pool,
+    proxyPool: proxyPool,
+  });
+
+  const healthOutput = await service.health();
+  assert.equal(healthOutput.account_pool_summary.total, 2);
+  assert.equal(healthOutput.account_pool_summary.available, 1, "acct_b is available (acct_a is leased)");
+  assert.equal(healthOutput.account_pool_summary.leased, 1);
+  assert.equal(healthOutput.proxy_pool_summary.total, 2);
+  assert.equal(healthOutput.proxy_pool_summary.healthy >= 0, true);
+
+  const detail = await service.getProviderDetail("chatgpt-web");
+  assert.equal(detail.account_pool.total_accounts, 2);
+  assert.equal(detail.account_pool.available_accounts, 1);
+  assert.equal(detail.proxy_pool.total_proxies, 2);
+});

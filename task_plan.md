@@ -6,7 +6,7 @@ Improve `web_capability_api` by absorbing the useful productized runtime pattern
 
 ## Current Phase
 
-Phase 1
+Phase 4
 
 ## Scope
 
@@ -79,11 +79,14 @@ This plan is for architecture and implementation sequencing only. It does not re
 
 ### Phase 4: Pooling & Scheduling Layer
 
-- [ ] Create or scaffold `packages/provider_pool` for account/profile registry, health, cooldowns, and capability flags.
-- [ ] Create or scaffold `packages/proxy_pool` only as a model first; do not require all providers to use proxies immediately.
-- [ ] Create or scaffold `packages/job_queue` for async image tasks, retries, aggregation, and restart-safe task state.
-- [ ] Define queue lease semantics for browser-profile-bound workers so the same browser identity cannot be mutated concurrently.
-- **Status:** pending
+- [x] Create `packages/provider_pool` for account/profile registry, health, cooldowns, and capability flags — aligned with account-pool.schema.json.
+- [x] Create `packages/proxy_pool` for proxy registry with health scoring — aligned with proxy-pool.schema.json.
+- [x] Create `packages/job_queue` for async image tasks, retries, aggregation, and restart-safe task state — aligned with queue-state.schema.json and image-task.schema.json.
+- [x] Define queue lease semantics for browser-profile-bound workers so the same browser identity cannot be mutated concurrently.
+- [x] Wire pool status into GPT provider admin service (`getProviderDetail`, `health`) — backward-compatible, optional, read-only.
+- [ ] Add the same queue/profile-lock vocabulary to Gemini Canvas worker docs and future runtime wrappers.
+- [ ] Keep provider-specific implementation details behind adapters.
+- **Status:** complete
 
 ### Phase 5: Observability & Admin Surface
 

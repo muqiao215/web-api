@@ -11,6 +11,9 @@ export function createProviderAdminService({
   outputDir,
   uploadDir,
   cdpHttp,
+  // Phase 4: optional pool integrations — backward-compatible (null when not wired yet)
+  providerPool = null,
+  proxyPool = null,
 }) {
   function queueMetrics() {
     const stats = getQueueStats() || {};
@@ -52,7 +55,7 @@ export function createProviderAdminService({
     const descriptor = provider.descriptor();
     const health = await providerHealth(provider);
     const runtimeContract = typeof inspectRuntimeStatus === "function" ? await inspectRuntimeStatus() : null;
-    return {
+    const detail = {
       ...descriptor,
       models: provider.models().map((model) => model.id),
       model_details: provider.models(),
@@ -70,6 +73,22 @@ export function createProviderAdminService({
         cdp_http: cdpHttp,
       },
     };
+    // Phase 4: attach pool status when pool packages are wired
+    if (providerPool) {
+      detail.account_pool = {
+        provider: providerPool.getProvider?.() ?? null,
+        total_accounts: providerPool.listAccounts?.()?.length ?? 0,
+        available_accounts: providerPool.getAvailableAccounts?.()?.length ?? 0,
+        leased_accounts: providerPool.getLeasedAccounts?.()?.length ?? 0,
+      };
+    }
+    if (proxyPool) {
+      detail.proxy_pool = {
+        total_proxies: proxyPool.listProxies?.()?.length ?? 0,
+        healthy_proxies: proxyPool.getHealthyProxies?.()?.length ?? 0,
+      };
+    }
+    return detail;
   }
 
   async function listProviderDetails() {
@@ -95,7 +114,7 @@ export function createProviderAdminService({
 
   async function health() {
     const runtimeContract = typeof inspectRuntimeStatus === "function" ? await inspectRuntimeStatus() : null;
-    return {
+    const result = {
       ok: true,
       service: "gpt_web_api",
       cdp: cdpHttp,
@@ -118,6 +137,22 @@ export function createProviderAdminService({
       media_index_path: mediaPath,
       runtime_contract: runtimeContract,
     };
+    // Phase 4: attach read-only pool status when pool packages are wired
+    if (providerPool) {
+      result.account_pool_summary = {
+        provider: providerPool.getProvider?.() ?? null,
+        total: providerPool.listAccounts?.()?.length ?? 0,
+        available: providerPool.getAvailableAccounts?.()?.length ?? 0,
+        leased: providerPool.getLeasedAccounts?.()?.length ?? 0,
+      };
+    }
+    if (proxyPool) {
+      result.proxy_pool_summary = {
+        total: proxyPool.listProxies?.()?.length ?? 0,
+        healthy: proxyPool.getHealthyProxies?.()?.length ?? 0,
+      };
+    }
+    return result;
   }
 
   return {

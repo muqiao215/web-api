@@ -1,0 +1,9 @@
+{
+  "name": "@web-capability-api/proxy-pool",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Proxy registry with health scoring and cooldown tracking. Aligned with proxy-pool.schema.json.",
+  "main": "src/index.mjs",
+  "devDependencies": {}
+}
