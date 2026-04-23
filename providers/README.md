@@ -12,9 +12,9 @@ Provider rules:
 
 Initial mapping:
 
-| Existing project | Target | Strategy |
+| Existing runtime | Target | Strategy |
 | --- | --- | --- |
-| `/root/.ductor/workspace/gpt_web_api` | `providers/gpt-web-api/` | migrated source; runtime cutover later |
-| `/root/.ductor/workspace/CanvasToAPI` | `providers/canvas-to-api/` | wrap/adopt carefully; browser session is critical |
-| `/root/.ductor/workspace/qwen2API` | `providers/qwen2api/` | candidate after account pool is usable |
-| `/root/.ductor/workspace/ds-free-api` | `providers/ds-free-api/` | wrapper around Rust binary/config first |
+| existing ChatGPT web worker | `providers/gpt-web-api/` | migrated source with local API surface |
+| existing Canvas/Gemini worker | `providers/canvas-to-api/` | wrap carefully; browser session is critical |
+| existing Qwen worker | `providers/qwen2api/` | only useful after account-pool import is working |
+| existing DeepSeek worker | `providers/ds-free-api/` | wrapper around external binary/config first |

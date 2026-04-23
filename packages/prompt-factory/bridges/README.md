@@ -8,12 +8,12 @@
 
 当前 bot 把 prompt pool 路径写死在：
 
-- `/root/.ductor/workspace/telegram_gpt_image_bot/state/prompt_pool.json`
+- `telegram_gpt_image_bot/state/prompt_pool.json`
 
 所以后续最小迁移有两种：
 
 1. 给 bot 增加环境变量覆盖，例如：
-   `TELEGRAM_GPT_PROMPT_POOL_PATH=/root/.ductor/workspace/prompt_factory/builds/local_repos/providers/gpt/prompt_pool.json`
+   `TELEGRAM_GPT_PROMPT_POOL_PATH=<workspace-root>/prompt_factory/builds/local_repos/providers/gpt/prompt_pool.json`
 2. 或者由外部同步脚本把 `prompt_factory` 导出文件复制/链接到 bot 期望路径
 
 本项目已经输出兼容 schema：
@@ -29,7 +29,7 @@
 因此可以直接把它指向：
 
 ```bash
-TELEGRAM_BANANA_LOCAL_PROMPT_POOL_PATHS=/root/.ductor/workspace/prompt_factory/builds/local_repos/providers/gpt/prompt_pool.json
+TELEGRAM_BANANA_LOCAL_PROMPT_POOL_PATHS=<workspace-root>/prompt_factory/builds/local_repos/providers/gpt/prompt_pool.json
 ```
 
 如果想更贴近 Banana 当前缓存结构，也可以改读：

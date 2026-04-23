@@ -8,6 +8,6 @@ Shared packages belong here.
 
 Future candidates:
 
-- `prompt-factory/` from `/root/.ductor/workspace/prompt_factory`
+- extracting older standalone prompt-factory runtime into this package tree
 - media-store contracts
 - sub2api account/group/key export helpers

@@ -47,7 +47,7 @@ The server needs Node 22+. On this host use `/usr/local/bin/node`; `/usr/bin/nod
 Start in foreground from the migrated tree:
 
 ```bash
-cd /root/.ductor/workspace/web_capability_api/providers/gpt-web-api
+cd providers/gpt-web-api
 node server.mjs
 ```
 
@@ -57,19 +57,12 @@ Current live systemd unit now points at this tree:
 systemctl cat gpt-web-api.service
 ```
 
-Current active values:
-
-- `WorkingDirectory=/root/.ductor/workspace/web_capability_api/providers/gpt-web-api`
-- `ExecStart=/usr/local/bin/node /root/.ductor/workspace/web_capability_api/providers/gpt-web-api/server.mjs`
-
-Rollback/cutover snapshots are stored under:
-
-- [GPT cutover backups](/root/.ductor/workspace/web_capability_api/ops/systemd/backups/20260419-gpt-cutover)
+Use the `ops/systemd/*.example` templates as a starting point and replace paths for your host.
 
 Run tests:
 
 ```bash
-cd /root/.ductor/workspace/web_capability_api/providers/gpt-web-api
+cd providers/gpt-web-api
 node --test test/*.test.mjs
 npm run check
 ```

@@ -21,7 +21,7 @@ Environment variables:
 DeepSeek local example:
 
 ```bash
-cd /root/.ductor/workspace/web_capability_api/shims/chat-responses
+cd shims/chat-responses
 node --test test/*.test.mjs
 
 CHAT_RESPONSES_SHIM_HOST=127.0.0.1 \

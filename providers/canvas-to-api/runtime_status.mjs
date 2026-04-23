@@ -8,18 +8,20 @@ const RUNTIME_CONTRACT = {
   queue_scope: "profile", // profile-serial mode — one Gemini Canvas browser = one serial worker
 };
 const CANVAS_HEALTH_URL = process.env.CANVAS_TO_API_HEALTH_URL || "http://127.0.0.1:7861/health";
+const CANVAS_PROFILE_ROOT =
+  process.env.WCAPI_CANVAS_PROFILE_ROOT || "/var/lib/web-capability-api/browser-profiles";
 const PROFILE_SPECS = [
   {
     id: "a",
     label: "Gemini Canvas profile A",
-    userDataDir: "/root/.ductor/state/browser-profiles/gemini-a",
+    userDataDir: `${CANVAS_PROFILE_ROOT}/gemini-a`,
     cdpHttp: "http://127.0.0.1:9231",
     systemdUnit: "gemini-canvas-browser@a.service",
   },
   {
     id: "b",
     label: "Gemini Canvas profile B",
-    userDataDir: "/root/.ductor/state/browser-profiles/gemini-b",
+    userDataDir: `${CANVAS_PROFILE_ROOT}/gemini-b`,
     cdpHttp: "http://127.0.0.1:9232",
     systemdUnit: "gemini-canvas-browser@b.service",
   },

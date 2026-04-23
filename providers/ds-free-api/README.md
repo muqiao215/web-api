@@ -1,6 +1,6 @@
 # ds-free-api
 
-Wrapper target for `/root/.ductor/workspace/ds-free-api`.
+Wrapper target for an upstream `ds-free-api` worker.
 
 Current live unit is transient:
 
@@ -12,7 +12,7 @@ Do not rewrite the Rust worker. First normalize service ownership, env/config pa
 Current unification path:
 
 - worker surface: `127.0.0.1:5317`
-- generic shim source: [chat-responses](/root/.ductor/workspace/web_capability_api/shims/chat-responses)
+- generic shim source: [`shims/chat-responses`](../../shims/chat-responses)
 - local shim target: `127.0.0.1:5327`
 
 Important runtime note:

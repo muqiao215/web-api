@@ -12,7 +12,7 @@
 - 运行时桥接源
   - `telegram_gpt_image_bot/state/prompt_pool.json`
 
-真正的同步注册表在 [source_registry.json](/root/.ductor/workspace/web_capability_api/packages/prompt-factory/sources/source_registry.json)。
+真正的同步注册表在 [source_registry.json](source_registry.json)。
 
 字段约定：
 

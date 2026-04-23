@@ -9,7 +9,7 @@
   `ai-image-prompts-skill.J5v2Vt`、`BestPrompts.tmp`、`stable-diffusion-prompt-templates.ASMlaX`、`prompt-pack.tmp`、`awesome-gpt-image-2-prompts`、`sources/manual_gpt_prompts.json`
 - `runtime_bridge`
   直接桥接当前已验证在跑的
-  `/root/.ductor/workspace/telegram_gpt_image_bot/state/prompt_pool.json`
+  `telegram_gpt_image_bot/state/prompt_pool.json`
   以保留现有 8900 条运行时资产与旧来源分布
 
 ## 目录
@@ -46,14 +46,14 @@
 在新 monorepo 里执行：
 
 ```bash
-uv run --project /root/.ductor/workspace/web_capability_api/packages/prompt-factory \
+uv run --project packages/prompt-factory \
   prompt-factory build --profile all
 ```
 
-如果工作区根不是 `/root/.ductor/workspace`，可以显式指定：
+如果工作区根不是当前仓库的上一级目录，可以显式指定：
 
 ```bash
-uv run --project /root/.ductor/workspace/web_capability_api/packages/prompt-factory \
+uv run --project packages/prompt-factory \
   prompt-factory build --profile all --workspace-root /your/workspace/root
 ```
 
@@ -70,13 +70,13 @@ uv run --project /root/.ductor/workspace/web_capability_api/packages/prompt-fact
 现在除了 `build`，还支持 3 个持久化命令：
 
 ```bash
-uv run --project /root/.ductor/workspace/web_capability_api/packages/prompt-factory \
+uv run --project packages/prompt-factory \
   prompt-factory sync
 
-uv run --project /root/.ductor/workspace/web_capability_api/packages/prompt-factory \
+uv run --project packages/prompt-factory \
   prompt-factory diff --profile local_repos
 
-uv run --project /root/.ductor/workspace/web_capability_api/packages/prompt-factory \
+uv run --project packages/prompt-factory \
   prompt-factory promote --profile local_repos
 ```
 
@@ -122,7 +122,7 @@ cron 友好的状态文件会写到 `state/`：
 
 `manual_gpt` 用来保存你在对话里临时收集后人工去噪的 GPT prompt：
 
-- 数据文件：[sources/manual_gpt_prompts.json](/root/.ductor/workspace/web_capability_api/packages/prompt-factory/sources/manual_gpt_prompts.json)
+- 数据文件：[sources/manual_gpt_prompts.json](sources/manual_gpt_prompts.json)
 - 适合存放从聊天、社媒、测试记录中拣出来的高质量 prompt
 - 会去掉账号名、序号、JSON 壳、图片尺寸尾巴这类噪音
 - 人物/人像 prompt 也会正常入库；是否在生成链路里筛掉，交给后续消费侧处理

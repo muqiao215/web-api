@@ -1,118 +1,81 @@
 # Web Capability API
 
-`web_capability_api` is the local monorepo skeleton for turning logged-in web, browser, and local provider capabilities into manageable APIs.
+Web Capability API is a self-hosted toolkit for turning logged-in web apps, browser sessions, and local model workers into manageable HTTP APIs.
 
-The core product is not a Telegram bot. Bots, showcase sites, and batch jobs are downstream consumers. The core is:
+It is aimed at builders who already have a working browser or provider runtime and want to expose it behind a more stable API surface instead of driving everything from ad hoc bots or manual browser clicks.
 
-```text
-logged-in browser / local worker / upstream API
-  -> provider API
-  -> protocol shim where needed
-  -> sub2api management plane
-  -> consumers
+## What It Does
+
+- Wrap browser-backed capabilities as local provider APIs.
+- Add protocol shims where an upstream only exposes chat-completions style endpoints.
+- Keep provider contracts, queue state, artifact records, and health checks in one place.
+- Let downstream consumers such as bots, automation jobs, and showcase apps talk to a unified surface instead of each provider directly.
+
+## Current Scope
+
+Implemented or staged in this repository:
+
+- ChatGPT web provider
+- Generic chat-to-responses shim
+- GPT responses shim
+- Prompt factory and prompt export pipeline
+- Canvas, DeepSeek, and Qwen integration stubs and runtime notes
+
+This repository is intentionally systemd-first and browser-aware. It does not try to hide that some providers depend on a real logged-in browser session.
+
+## Quick Start
+
+Install workspace dependencies:
+
+```bash
+bun install
+uv sync --project packages/ops_doctor
 ```
 
-## Current Principles
+Run the health doctor:
 
-- Use `sub2api` as the unified API management plane.
-- Use `uv` for first-party Python packages and CLIs.
-- Use `bun` for first-party JavaScript and TypeScript apps.
-- Do not force browser-profile-bound services into containers for neatness.
-- Keep browser sessions, Chrome CDP, and noVNC as explicit runtime dependencies.
-- Keep Go/Rust/external upstream projects as vendor or wrapper boundaries unless there is a concrete reason to fork.
-- Treat Telegram bots and showcase sites as consumers, not as the core architecture.
+```bash
+uv run --project packages/ops_doctor wcapi-doctor
+```
 
-## Current Local Reality
+Run a provider or shim from the repo root:
 
-Confirmed live services on this host:
+```bash
+cd providers/gpt-web-api
+bun run start
+```
 
-| Role | Current service | Local surface | Status |
-| --- | --- | --- | --- |
-| API management plane | `sub2api-local.service` | `127.0.0.1:18080` | active, `/health` ok |
-| GPT browser worker | `gpt-web-api.service` | `127.0.0.1:4242` | active, `/health` ok |
-| GPT Responses shim | `gpt-web-responses-shim.service` | `127.0.0.1:4252` | active, `/health` ok |
-| DeepSeek Responses shim | `ds-free-responses-shim.service` | `127.0.0.1:5327` | target shape for `sub2api`; upstream still needs content smoke |
-| Gemini/Canvas worker | `canvas-to-api.service` | `127.0.0.1:7861` | service active, `browserConnected=false` can still block image generation |
-| DeepSeek worker | `ds-free-api-b492dedd.service` | `127.0.0.1:5317` | active, auth required |
-| Browser runtime | Chrome CDP | `127.0.0.1:9222` | listening |
-| Manual browser rescue | noVNC/websockify | `127.0.0.1:6080` | listening |
+```bash
+cd shims/gpt-web-responses
+bun run start
+```
 
-This repository starts as a scaffold. Do not migrate running services blindly; migrate one layer at a time and rewire systemd paths only after smoke checks pass.
-
-Provider health is tracked in [ops/provider-status.md](/root/.ductor/workspace/web_capability_api/ops/provider-status.md). The important distinction is:
-
-- `API surface aligned` means the local endpoint shape matches the unified contract.
-- `Routed` means the provider is registered in `sub2api`.
-- `Healthy` means content generation has passed direct and `sub2api` smokes.
-
-## Migration Status
-
-Already migrated into this repository:
-
-- `providers/gpt-web-api/`
-- `shims/gpt-web-responses/`
-- `shims/chat-responses/`
-- `packages/prompt-factory/`
-
-Already cut over to run from this repository:
-
-- `gpt-web-api.service`
-- `gpt-web-responses-shim.service`
-- `ds-free-responses-shim.service`
-
-Still running from legacy or external paths:
-
-- all current `sub2api` units
-- Canvas units
-- other provider and consumer services
-
-That means GPT code migration and GPT runtime cutover are both complete, while the rest of the stack is still staged.
-
-## Layout
+## Repository Layout
 
 ```text
-apps/                 optional first-party control surfaces
-providers/            API workers that expose real capabilities
-shims/                protocol adapters between workers and sub2api
-packages/             shared schemas, prompt/control packages, ops CLIs
-consumers/            Telegram bots, showcase sites, batch jobs
-vendor/               pinned external source or binary boundaries
-ops/                  systemd, env templates, smoke checks, runbooks
+apps/                 optional control surfaces
+providers/            capability workers
+shims/                protocol adapters
+packages/             shared contracts and CLIs
+consumers/            downstream bots and apps
+vendor/               external upstream boundaries
+ops/                  env templates and deployment examples
 ```
 
 ## Tooling
 
-Python:
+- Python packages use `uv`.
+- JavaScript and TypeScript packages use `bun`.
+- Runtime verification starts with `packages/ops_doctor`.
 
-```bash
-uv run --project packages/ops_doctor wcapi-doctor
-```
+## Honest Boundaries
 
-JavaScript/TypeScript:
+- Some providers only work when a real browser session is already authenticated.
+- Some integrations in this repo are wrappers or migration targets, not fully productized upstream forks.
+- `sub2api` is the intended management plane, but not every provider in this repo should be registered into it until direct content smoke checks pass.
 
-```bash
-bun install
-bun run doctor
-```
+## Where To Go Next
 
-Note: this host currently has `uv` available. If `bun` is missing on a target host, install it before relying on JS workspace scripts; do not fall back to `npm` for new first-party work unless this is an emergency recovery.
-
-## Migration Order
-
-1. Keep all existing services running from their current directories.
-2. Use `packages/ops_doctor` to establish a baseline.
-3. GPT API, GPT shim, and prompt factory have already been copied and verified in this repo; GPT runtime cutover is complete.
-4. Use `shims/chat-responses/` for workers that only expose chat completions.
-5. Keep `sub2api` under `vendor/` and deploy wrappers under `ops/`.
-6. Treat `CanvasToAPI` as a browser-session provider; fix login/profile operations before calling it stable.
-7. Move consumers last.
-
-## Verification
-
-Run:
-
-```bash
-uv run --project packages/ops_doctor wcapi-doctor
-```
-
-Use `--strict` when a warning such as `browserConnected=false` should fail the check.
+- Start with [providers](providers/README.md) for provider surfaces.
+- See [shims](shims/README.md) for protocol adapters.
+- See [ops](ops/README.md) for deployment templates and non-secret environment examples.

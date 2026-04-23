@@ -1,6 +1,6 @@
 # qwen2api
 
-Future target for `/root/.ductor/workspace/qwen2API`.
+Wrapper target for an upstream `qwen2API` deployment.
 
 Current known shape:
 

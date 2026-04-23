@@ -32,3 +32,21 @@ logs/
 artifacts/
 tmp/
 *.local.*
+
+# Public-release private artifacts
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+TASKMEMORY.md
+findings.md
+progress.md
+result.md
+task_plan.md
+**/TASKMEMORY.md
+**/findings.md
+**/progress.md
+**/result.md
+**/task_plan.md
+ops/provider-status.md
+ops/browser-profiles/
+ops/systemd/backups/
