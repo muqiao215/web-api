@@ -1,12 +1,36 @@
 # canvas-to-api
 
-Bridge target for an upstream Canvas/Gemini worker.
+This provider now has a real upstream source slice inside the monorepo.
+
+## Layout
+
+- `upstream/`
+  Vendored upstream `CanvasToAPI` source tree.
+- provider root
+  Local integration notes, ignore rules, and repo-owned runtime inspection such as `runtime_status.mjs`.
+
+## What Is Absorbed
+
+- Node/Express proxy worker source under `upstream/src`
+- Vue/Vite UI source under `upstream/ui`
+- upstream configs, docs, scripts, and startup files
+- upstream `LICENSE`
+
+## What Is Intentionally Not Copied
+
+- `node_modules`
+- `ui/dist`
+- `.env*` runtime files other than `.env.example`
+- `configs/share-link.json`
+- auth/cache/temp runtime state
+
+## Current Live Runtime
 
 Current live unit:
 
 - `canvas-to-api.service`
 - bind: `127.0.0.1:7861`
-- current entry is still managed by the upstream Canvas worker runtime, not by this wrapper package
+- current entry is still managed by the upstream Canvas worker runtime, not by repo-owned replacement code
 
 Important: service health and browser session health are different. `browserConnected=false` means the worker process is alive but Gemini/Banana generation can still fail.
 
@@ -18,7 +42,7 @@ Persistent browser profiles are managed separately from the API worker:
 
 Keep browser profile state outside Git and inject its root path through `WCAPI_CANVAS_PROFILE_ROOT` when needed.
 
-Runtime contract:
+## Runtime Contract
 
 ```bash
 node providers/canvas-to-api/runtime_status.mjs

@@ -1,0 +1,13 @@
+# Local runtime state and build output
+logs/
+tmp/
+runtime/
+upstream/.venv/
+upstream/backend/.venv/
+upstream/backend/accounts.json
+upstream/backend/data/*.json
+upstream/data/*.json
+upstream/frontend/node_modules/
+upstream/frontend/dist/
+upstream/**/__pycache__/
+upstream/**/*.pyc

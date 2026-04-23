@@ -15,6 +15,6 @@ Initial mapping:
 | Existing runtime | Target | Strategy |
 | --- | --- | --- |
 | existing ChatGPT web worker | `providers/gpt-web-api/` | migrated source with local API surface |
-| existing Canvas/Gemini worker | `providers/canvas-to-api/` | wrap carefully; browser session is critical |
-| existing Qwen worker | `providers/qwen2api/` | only useful after account-pool import is working |
-| existing DeepSeek worker | `providers/ds-free-api/` | wrapper around external binary/config first |
+| existing Canvas/Gemini worker | `providers/canvas-to-api/` | vendored upstream source under provider path, but keep browser/session runtime external |
+| existing Qwen worker | `providers/qwen2api/` | vendored upstream source under provider path, then integrate around it |
+| existing DeepSeek worker | `providers/ds-free-api/` | vendored licensed upstream worker under provider path, then integrate around it |

@@ -1,0 +1,15 @@
+# Local runtime state and build output
+logs/
+tmp/
+runtime/
+upstream/node_modules/
+upstream/ui/dist/
+upstream/configs/share-link.json
+upstream/configs/auth/
+upstream/auth-*.json
+upstream/users.csv
+upstream/cache/
+upstream/.env
+upstream/.env.local
+upstream/.env.development
+upstream/.env.production

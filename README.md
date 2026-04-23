@@ -4,6 +4,8 @@ Web Capability API is a self-hosted toolkit for turning logged-in web apps, brow
 
 It is aimed at builders who already have a working browser or provider runtime and want to expose it behind a more stable API surface instead of driving everything from ad hoc bots or manual browser clicks.
 
+This repository is not a full source mirror of every provider it can manage. Some providers are fully implemented here, some are partially absorbed with vendored upstream source, and some remain external runtimes that this repo wraps or supervises.
+
 ## What It Does
 
 - Wrap browser-backed capabilities as local provider APIs.
@@ -19,7 +21,9 @@ Implemented or staged in this repository:
 - Generic chat-to-responses shim
 - GPT responses shim
 - Prompt factory and prompt export pipeline
-- Canvas, DeepSeek, and Qwen integration stubs and runtime notes
+- DeepSeek provider boundary plus vendored Apache-2.0 upstream worker source
+- Qwen provider boundary plus vendored upstream source
+- Canvas provider boundary plus vendored upstream source
 
 This repository is intentionally systemd-first and browser-aware. It does not try to hide that some providers depend on a real logged-in browser session.
 
@@ -54,13 +58,26 @@ bun run start
 
 ```text
 apps/                 optional control surfaces
-providers/            capability workers
+providers/            capability workers and provider-owned upstream slices
 shims/                protocol adapters
 packages/             shared contracts and CLIs
 consumers/            downstream bots and apps
 vendor/               external upstream boundaries
 ops/                  env templates and deployment examples
 ```
+
+## Layering
+
+The intended architecture has three visible layers:
+
+1. Generic layer
+   `packages/`, `apps/`, and shared schemas/queues/health tooling.
+2. Integration layer
+   `providers/` and `shims/` that normalize different upstream styles.
+3. Upstream boundary layer
+   external projects that remain separate repos or binaries until there is a strong reason and clear license path to absorb them.
+
+See [UPSTREAMS.md](UPSTREAMS.md) for the current upstream-boundary map.
 
 ## Tooling
 
