@@ -4,9 +4,11 @@
   "type": "module",
   "workspaces": [
     "apps/control-workbench",
+    "apps/private-worker",
     "packages/provider_artifacts",
     "providers/gpt-web-api",
     "providers/catgpt-gateway",
+    "providers/gemini-web",
     "providers/canvas-to-api",
     "providers/qwen2api/frontend",
     "shims/chat-responses",
@@ -14,6 +16,9 @@
     "consumers/showcase-web"
   ],
   "scripts": {
+    "gemini:start": "node providers/gemini-web/start.mjs",
+    "gemini:start:compat": "node providers/canvas-to-api/start.mjs",
+    "gemini:runtime:status": "node providers/gemini-web/runtime_status.mjs",
     "doctor": "uv run --project packages/ops_doctor wcapi-doctor",
     "doctor:strict": "uv run --project packages/ops_doctor wcapi-doctor --strict",
     "check:layout": "test -f README.md && test -d providers && test -d shims && test -d packages && test -d ops",

@@ -10,6 +10,7 @@ import { MediaStore } from "../lib/media_store.mjs";
 import { SessionAffinityStore } from "../lib/session_affinity.mjs";
 import { SessionLockRegistry } from "../lib/session_lock.mjs";
 import { ChatGPTWebProvider } from "../providers/chatgpt_web_provider.mjs";
+import { GeminiWebProvider } from "../providers/gemini_web_provider.mjs";
 
 test("JobQueue serializes jobs and stores status transitions", async () => {
   const queue = new JobQueue({ idPrefix: "testjob" });
@@ -165,6 +166,19 @@ test("normalizeApiError classifies common provider failures", () => {
   assert.equal(normalizeApiError(new Error("You're generating images too quickly")).status, 429);
   assert.equal(normalizeApiError(new Error("ChatGPT web is not logged in")).type, "authentication_error");
   assert.equal(normalizeApiError(new Error("send button not found")).code, "browser_dom_changed");
+  const composerStale = normalizeApiError(new Error("Image composer stale-state: send button still disabled after fill"));
+  assert.equal(composerStale.status, 502);
+  assert.equal(composerStale.code, "browser_image_composer_stale");
+  assert.equal(composerStale.meta?.operation, "images.generations");
+  const composerInert = normalizeApiError(new Error("Image composer inert after synthetic input: send button still disabled"));
+  assert.equal(composerInert.status, 502);
+  assert.equal(composerInert.code, "browser_image_composer_inert");
+  assert.equal(composerInert.meta?.retryable, false);
+  const geminiTimeout = normalizeApiError(new Error("Gemini image generation timed out"));
+  assert.equal(geminiTimeout.status, 504);
+  assert.equal(geminiTimeout.type, "timeout_error");
+  assert.equal(geminiTimeout.code, "gemini_image_generation_timeout");
+  assert.equal(geminiTimeout.meta?.provider, "gemini-web");
 });
 
 test("ChatGPTWebProvider exposes provider-style metadata and delegates operations", async () => {
@@ -181,4 +195,146 @@ test("ChatGPTWebProvider exposes provider-style metadata and delegates operation
   );
   assert.equal(provider.capabilities.images, true);
   assert.deepEqual(await provider.generateImage("draw"), { prompt: "draw", output_path: "/tmp/out.png" });
+});
+
+test("GeminiWebProvider exposes canonical metadata and maps runtime HTTP responses", async () => {
+  const calls = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, options = {}) => {
+    calls.push({ url, options });
+
+    if (String(url).endsWith("/health")) {
+      return {
+        ok: true,
+        async json() {
+          return {
+            status: "ok",
+            provider_id: "gemini-canvas",
+            provider_id_canonical: "gemini-web",
+            transport: {
+              id: "gemini-web-runtime",
+              type: "cookie-auth-web-runtime",
+            },
+          };
+        },
+      };
+    }
+
+    if (String(url).endsWith("/v1/chat/completions")) {
+      return {
+        ok: true,
+        async json() {
+          return {
+            created: 123,
+            model: "gemini-3-flash",
+            choices: [{ message: { content: "GEMINI_WEB_RUNTIME_OK" } }],
+            admission: "experimental",
+          };
+        },
+      };
+    }
+
+    if (String(url).endsWith("/v1/images/generations")) {
+      return {
+        ok: true,
+        async json() {
+          return {
+            created: 456,
+            admission: "experimental",
+            data: [
+              {
+                local_path: "/tmp/gemini-image.png",
+                mime_type: "image/png",
+                sha256: "abc123",
+                source_url: "https://example.test/generated.png",
+              },
+            ],
+          };
+        },
+      };
+    }
+
+    throw new Error(`Unexpected URL: ${url}`);
+  };
+
+  try {
+    const provider = new GeminiWebProvider({
+      runtimeBaseUrl: "http://127.0.0.1:7862",
+      requestTimeoutMs: 5000,
+    });
+
+    assert.equal(provider.id, "gemini-web");
+    assert.deepEqual(provider.aliases, ["gemini-canvas"]);
+    assert.equal(provider.defaultImageModel(), "gemini-3-flash");
+    assert.equal(provider.capabilities.streaming, false);
+    assert.equal(provider.streaming_strategy, "single_event_degraded");
+    assert.equal(provider.descriptor().route_meta["images.generations"].degraded, true);
+
+    const chat = await provider.chatCompletion([{ role: "user", content: "hi" }], {
+      model: "gemini-3-flash",
+    });
+    const streamed = await provider.chatCompletionStream([{ role: "user", content: "hi" }], {
+      model: "gemini-3-flash",
+    });
+    const health = await provider.healthCheck();
+    const image = await provider.generateImage("draw a cat", { model: "gemini-3-flash" });
+
+    assert.equal(chat.content, "GEMINI_WEB_RUNTIME_OK");
+    assert.equal(chat.streaming_strategy, "single_event_degraded");
+    assert.equal(streamed.streaming_degraded, true);
+    assert.equal(streamed.streaming_strategy, "single_event_degraded");
+    assert.equal(chat.provider, "gemini-web");
+    assert.equal(health.provider_id_canonical, "gemini-web");
+    assert.equal(image.output_path, "/tmp/gemini-image.png");
+    assert.equal(image.image_url, "https://example.test/generated.png");
+    assert.equal(image.admission, "experimental");
+    assert.equal(image.admission_detail.degraded, true);
+    assert.equal(image.admission_detail.timeout_mode, "bounded");
+
+    const imageRequest = calls.find((call) => String(call.url).endsWith("/v1/images/generations"));
+    assert.ok(imageRequest, "image request must be issued");
+    assert.match(String(imageRequest.options.body), /\"model\":\"gemini-3-flash\"/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("GeminiWebProvider preserves structured runtime image errors", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({
+    ok: false,
+    status: 504,
+    async json() {
+      return {
+        detail: {
+          message: "Gemini image generation timed out",
+          type: "timeout_error",
+          code: "gemini_image_generation_timeout",
+          status: 504,
+          meta: {
+            provider: "gemini-web",
+            operation: "images.generations",
+            degraded: true,
+          },
+        },
+      };
+    },
+  });
+
+  try {
+    const provider = new GeminiWebProvider();
+    await assert.rejects(
+      () => provider.generateImage("draw a cat", { model: "gemini-3-flash" }),
+      (error) => {
+        assert.equal(error.status, 504);
+        assert.equal(error.type, "timeout_error");
+        assert.equal(error.code, "gemini_image_generation_timeout");
+        assert.equal(error.meta?.provider, "gemini-web");
+        assert.equal(error.meta?.operation, "images.generations");
+        return true;
+      },
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });

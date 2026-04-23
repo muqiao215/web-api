@@ -7,6 +7,8 @@ import { createProviderAdminService } from "../services/provider_admin_service.m
 function createProvider(id, models = [], capabilities = {}) {
   return {
     id,
+    runtime_tier: "tier0_lightweight_text",
+    integration_class: "lightweight_text_boundary",
     name: `${id}-name`,
     type: "test",
     capabilities,
@@ -16,6 +18,8 @@ function createProvider(id, models = [], capabilities = {}) {
         object: "provider",
         name: `${id}-name`,
         type: "test",
+        runtime_tier: "tier0_lightweight_text",
+        integration_class: "lightweight_text_boundary",
         capabilities,
         models,
       };
@@ -100,8 +104,12 @@ test("Provider admin service exposes provider details with health and queue metr
   assert.equal(model.provider, "chatgpt-web");
   assert.equal(model.capabilities.images, true);
   assert.equal(model.provider_name, "chatgpt-web-name");
+  assert.equal(model.runtime_tier, "tier0_lightweight_text");
+  assert.equal(model.integration_class, "lightweight_text_boundary");
 
   assert.equal(provider.id, "chatgpt-web");
+  assert.equal(provider.runtime_policy.runtime_tier, "tier0_lightweight_text");
+  assert.equal(provider.runtime_policy.integration_class, "lightweight_text_boundary");
   assert.equal(provider.health.ok, true);
   assert.equal(provider.runtime.queue_depth, 3);
   assert.equal(provider.runtime.session_locks, 1);
@@ -140,6 +148,107 @@ test("Provider admin service rejects unknown providers", async () => {
   await assert.rejects(() => service.getProviderDetail("missing"), /Unknown provider/);
 });
 
+test("Provider admin service uses provider-specific runtime and transport for non-browser providers", async () => {
+  const router = new ProviderRouter();
+  router.register(
+    {
+      id: "gemini-web",
+      aliases: ["gemini-canvas"],
+      name: "Gemini Web",
+      type: "local-api",
+      runtime_tier: "tier1_browser_capability",
+      integration_class: "external_worker_plus_shim",
+      capabilities: { chat: true, images: true, files: true, vision: true },
+      descriptor() {
+        return {
+          id: "gemini-web",
+          object: "provider",
+          name: "Gemini Web",
+          type: "local-api",
+          runtime_tier: "tier1_browser_capability",
+          integration_class: "external_worker_plus_shim",
+          capabilities: { chat: true, images: true, files: true, vision: true },
+          models: ["gemini-3-flash", "gemini-3-pro"],
+          aliases: ["gemini-canvas"],
+          admission: {
+            images: {
+              state: "experimental",
+              degraded: true,
+              timeout_mode: "bounded",
+            },
+          },
+          route_meta: {
+            "images.generations": {
+              state: "experimental",
+              degraded: true,
+              timeout_mode: "bounded",
+            },
+          },
+        };
+      },
+      models() {
+        return [
+          { id: "gemini-3-flash", object: "model", owned_by: "google-web", provider: "gemini-web" },
+          { id: "gemini-3-pro", object: "model", owned_by: "google-web", provider: "gemini-web" },
+        ];
+      },
+      async healthCheck() {
+        return { status: "ok", provider_id_canonical: "gemini-web" };
+      },
+      async runtimeStatus() {
+        return {
+          contract_version: "wcapi.browser_worker_runtime.v1",
+          provider_id: "gemini-canvas",
+          provider_id_canonical: "gemini-web",
+          status: "ok",
+          service_alive: true,
+          logged_in: true,
+          blocked_by: "none",
+          transport: {
+            id: "gemini-web-runtime",
+            type: "cookie-auth-web-runtime",
+            health_url: "http://127.0.0.1:7862/health",
+          },
+        };
+      },
+      async transportDetail() {
+        return {
+          id: "gemini-web-runtime",
+          type: "cookie-auth-web-runtime",
+          health_url: "http://127.0.0.1:7862/health",
+        };
+      },
+    },
+    { isDefault: true },
+  );
+
+  const service = createProviderAdminService({
+    providerRouter: router,
+    inspectBrowserReadiness: async () => ({ ok: true, browser: "Chrome/1.0" }),
+    inspectRuntimeStatus: async () => ({
+      provider_id: "chatgpt-web",
+      cdp_ready: true,
+    }),
+    getQueueDepth: () => 0,
+    getQueueStats: () => ({ pending: 0, running: 0, total: 0 }),
+    getSessionLockCount: () => 0,
+    jobsPath: "/tmp/jobs.json",
+    sessionAffinityPath: "/tmp/session_affinity.json",
+    mediaPath: "/tmp/media.json",
+    outputDir: "/tmp/generated",
+    uploadDir: "/tmp/uploads",
+    cdpHttp: "http://127.0.0.1:9222",
+  });
+
+  const detail = await service.getProviderDetail("gemini-web");
+  assert.equal(detail.health.provider_id_canonical, "gemini-web");
+  assert.equal(detail.runtime_contract.provider_id_canonical, "gemini-web");
+  assert.equal(detail.transport.id, "gemini-web-runtime");
+  assert.equal(detail.transport.cdp_http, undefined);
+  assert.equal(detail.admission.images.degraded, true);
+  assert.equal(detail.route_meta["images.generations"].timeout_mode, "bounded");
+});
+
 test("Provider admin service health output includes account_id, profile_lock, lease fields (Phase 4 placeholders)", async () => {
   const router = new ProviderRouter();
   router.register(createProvider("chatgpt-web", ["chatgpt-web"]), { isDefault: true });
@@ -162,9 +271,41 @@ test("Provider admin service health output includes account_id, profile_lock, le
   const healthOutput = await service.health();
   assert.equal(healthOutput.queue_depth, 1);
   assert.equal(healthOutput.session_locks, 0);
+  assert.equal(healthOutput.providers[0].runtime_tier, "tier0_lightweight_text");
+  assert.equal(healthOutput.providers[0].integration_class, "lightweight_text_boundary");
   assert.equal(healthOutput.account_id, null, "account_id is nullable — Phase 4 account pool");
   assert.equal(healthOutput.profile_lock, null, "profile_lock is nullable — Phase 4 account pool");
   assert.equal(healthOutput.lease, null, "lease is nullable — Phase 4 account pool");
+});
+
+test("Provider admin service health output includes center routing summary when wired", async () => {
+  const router = new ProviderRouter();
+  router.register(createProvider("chatgpt-web", ["chatgpt-web"]), { isDefault: true });
+
+  const service = createProviderAdminService({
+    providerRouter: router,
+    inspectBrowserReadiness: async () => ({ ok: true }),
+    inspectRuntimeStatus: async () => ({ status: "ok" }),
+    getQueueDepth: () => 0,
+    getQueueStats: () => ({ pending: 0, running: 0, total: 0 }),
+    getSessionLockCount: () => 0,
+    jobsPath: "/tmp/jobs.json",
+    sessionAffinityPath: "/tmp/session_affinity.json",
+    mediaPath: "/tmp/media.json",
+    outputDir: "/tmp/generated",
+    uploadDir: "/tmp/uploads",
+    cdpHttp: "http://127.0.0.1:9222",
+    getCenterRoutingSummary: () => ({
+      text_chat_preferred_tier: "tier0_lightweight_text",
+      browser_capability_tier: "tier1_browser_capability",
+      workers: [{ id: "qwen-worker", runtime_tier: "tier0_lightweight_text" }],
+    }),
+  });
+
+  const healthOutput = await service.health();
+  assert.equal(healthOutput.center_routing_summary.text_chat_preferred_tier, "tier0_lightweight_text");
+  assert.equal(healthOutput.center_routing_summary.browser_capability_tier, "tier1_browser_capability");
+  assert.equal(healthOutput.center_routing_summary.workers[0].id, "qwen-worker");
 });
 
 test("Provider admin service attaches pool status when pool packages are wired (Phase 4)", async () => {
@@ -278,6 +419,8 @@ test("Provider admin service health() returns runtime_contract aligned with prov
   assert.equal(health.providers[0].id, "chatgpt-web");
   assert.ok(Array.isArray(health.providers[0].models), "provider models must be array");
   assert.equal(health.providers[0].models[0], "chatgpt-web");
+  assert.equal(health.providers[0].admission, null);
+  assert.equal(health.providers[0].route_meta, null);
 
   // paths — used by ops_doctor diagnose.mjs for file-based checks
   assert.equal(health.jobs_path, "/tmp/jobs.json");
@@ -375,4 +518,58 @@ test("Provider admin service getProviderDetail returns all models with capabilit
   // Capability metadata at provider level
   assert.ok(detail.capabilities, "provider capabilities must be present");
   assert.equal(detail.capabilities.images, true);
+});
+
+test("Provider admin service health output includes provider admission metadata when present", async () => {
+  const router = new ProviderRouter();
+  router.register(
+    {
+      ...createProvider("gemini-web", ["gemini-3-flash"], { chat: true, images: true }),
+      descriptor() {
+        return {
+          id: "gemini-web",
+          object: "provider",
+          name: "Gemini Web",
+          type: "local-api",
+          runtime_tier: "tier1_browser_capability",
+          integration_class: "external_worker_plus_shim",
+          capabilities: { chat: true, images: true },
+          models: ["gemini-3-flash"],
+          admission: {
+            images: {
+              state: "experimental",
+              degraded: true,
+              timeout_mode: "bounded",
+            },
+          },
+          route_meta: {
+            "images.generations": {
+              state: "experimental",
+              degraded: true,
+            },
+          },
+        };
+      },
+    },
+    { isDefault: true },
+  );
+
+  const service = createProviderAdminService({
+    providerRouter: router,
+    inspectBrowserReadiness: async () => ({ ok: true }),
+    inspectRuntimeStatus: async () => ({ status: "ok" }),
+    getQueueDepth: () => 0,
+    getQueueStats: () => ({ pending: 0, running: 0, total: 0 }),
+    getSessionLockCount: () => 0,
+    jobsPath: "/tmp/jobs.json",
+    sessionAffinityPath: "/tmp/session_affinity.json",
+    mediaPath: "/tmp/media.json",
+    outputDir: "/tmp/generated",
+    uploadDir: "/tmp/uploads",
+    cdpHttp: "http://127.0.0.1:9222",
+  });
+
+  const health = await service.health();
+  assert.equal(health.providers[0].admission.images.degraded, true);
+  assert.equal(health.providers[0].route_meta["images.generations"].degraded, true);
 });

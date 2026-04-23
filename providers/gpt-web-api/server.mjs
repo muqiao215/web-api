@@ -9,12 +9,14 @@ import { ProviderRouter } from "./lib/provider_router.mjs";
 import { SessionAffinityStore } from "./lib/session_affinity.mjs";
 import { SessionLockRegistry } from "./lib/session_lock.mjs";
 import { ChatGPTWebProvider } from "./providers/chatgpt_web_provider.mjs";
+import { GeminiWebProvider } from "./providers/gemini_web_provider.mjs";
 import { createOpenAIRouteHandler } from "./routes/openai_routes.mjs";
 import { createResearchRouteHandler } from "./routes/research_routes.mjs";
 import { createSystemRouteHandler } from "./routes/system_routes.mjs";
 import { createBrowserRuntime } from "./services/browser_runtime.mjs";
 import { createChatService } from "./services/chat_service.mjs";
 import { createChatStateService } from "./services/chat_state_service.mjs";
+import { createCenterJobService } from "./services/center_job_service.mjs";
 import { sendJson } from "./services/http_utils.mjs";
 import { createProviderAdminService } from "./services/provider_admin_service.mjs";
 import { createResearchService } from "./services/research_service.mjs";
@@ -34,6 +36,7 @@ const CONVERSATIONS_PATH = path.join(DATA_DIR, "conversations.json");
 const FILES_PATH = path.join(DATA_DIR, "files.json");
 const MEDIA_PATH = path.join(DATA_DIR, "media.json");
 const JOBS_PATH = path.join(DATA_DIR, "jobs.json");
+const WORKER_REGISTRY_PATH = process.env.GPT_WEB_API_WORKER_REGISTRY_PATH || path.join(DATA_DIR, "worker_registry.json");
 const SESSION_AFFINITY_PATH = path.join(DATA_DIR, "session_affinity.json");
 const SUPPORTED_IMAGE_SIZE = "1024x1024";
 const MAX_IMAGE_COUNT = 4;
@@ -50,6 +53,18 @@ function withTimeout(work, timeoutMs, label) {
       setTimeout(() => reject(new Error(`${label} timed out after ${timeoutMs}ms`)), timeoutMs);
     }),
   ]);
+}
+
+function loadWorkerRegistry(filepath) {
+  try {
+    if (!fs.existsSync(filepath)) {
+      return { workers: [] };
+    }
+    return JSON.parse(fs.readFileSync(filepath, "utf8"));
+  } catch (error) {
+    console.warn(JSON.stringify({ ok: false, warning: "worker_registry_load_failed", filepath, message: error.message }));
+    return { workers: [] };
+  }
 }
 
 const jobQueue = new JobQueue({ idPrefix: "gptwebjob", maxJobs: 500, persistencePath: JOBS_PATH });
@@ -87,9 +102,11 @@ const provider = new ChatGPTWebProvider({
   generateImage: chatService.generateImage,
   healthCheck: browserRuntime.inspectBrowserReadiness,
 });
+const geminiProvider = new GeminiWebProvider();
 
 const providerRouter = new ProviderRouter();
 providerRouter.register(provider, { isDefault: true });
+providerRouter.register(geminiProvider);
 
 const providerAdminService = createProviderAdminService({
   providerRouter,
@@ -104,6 +121,7 @@ const providerAdminService = createProviderAdminService({
   outputDir: OUTPUT_DIR,
   uploadDir: UPLOAD_DIR,
   cdpHttp: CDP_HTTP,
+  getCenterRoutingSummary: () => centerJobService.getRoutingSummary(),
   checkPathWritability: (p) => {
     try {
       if (!fs.existsSync(p)) return { writable: false, error: "not found" };
@@ -137,9 +155,40 @@ function serialize(work, type = "provider.operation", metadata = {}) {
   return queued.wait();
 }
 
+const centerJobService = createCenterJobService({
+  jobQueue,
+  registry: loadWorkerRegistry(WORKER_REGISTRY_PATH),
+  localFallback: async ({ type, payload = {} }) => {
+    if (type === "chat.completion") {
+      const provider = providerRouter.resolveProvider({
+        providerId: typeof payload.provider === "string" ? payload.provider.trim() : "",
+        modelId: typeof payload.model === "string" ? payload.model.trim() : "",
+      });
+      const model = payload.model || provider.models()[0]?.id || provider.id;
+      const messages = Array.isArray(payload.messages) ? payload.messages : [];
+      return withTimeout(
+        () =>
+          provider.chatCompletion(messages, {
+            conversationId:
+              typeof payload.conversation_id === "string" && payload.conversation_id.trim()
+                ? payload.conversation_id.trim()
+                : null,
+            fileIds: Array.isArray(payload.file_ids) ? payload.file_ids.filter((item) => typeof item === "string") : [],
+            providerId: provider.id,
+            model,
+          }),
+        CHAT_TIMEOUT_MS,
+        "Center local fallback chat completion"
+      );
+    }
+    throw new Error(`Unsupported local fallback type: ${type}`);
+  },
+});
+
 const handleOpenAIRoute = createOpenAIRouteHandler({
   providerRouter,
   providerAdminService,
+  centerJobService,
   mediaStore,
   sessionAffinity,
   chatState,

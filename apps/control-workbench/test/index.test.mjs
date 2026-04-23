@@ -162,6 +162,8 @@ test("normalizeCanvasHealth maps status=ok to provider status=ok", () => {
   const input = {
     contract_version: "wcapi.browser_worker_runtime.v1",
     provider_id: "gemini-canvas",
+    provider_id_canonical: "gemini-web",
+    provider_id_legacy: "gemini-canvas",
     provider_type: "browser-session",
     status: "ok",
     logged_in: true,
@@ -176,13 +178,24 @@ test("normalizeCanvasHealth maps status=ok to provider status=ok", () => {
     },
   };
   const result = normalizeCanvasHealth(input);
-  assert.equal(result.provider, "gemini-canvas");
+  assert.equal(result.provider, "gemini-web");
+  assert.equal(result.providerCanonical, "gemini-web");
+  assert.equal(result.providerFamily, "gemini-web");
+  assert.equal(result.providerLegacy, "gemini-canvas");
+  assert.deepEqual(result.providerAliases, ["gemini-canvas", "gemini-web"]);
   assert.equal(result.providerType, "browser-session");
   assert.equal(result.status, "ok");
   assert.equal(result.health.logged_in, true);
   assert.equal(result.health.cdp_ready, true);
   assert.equal(result.health.browser_connected, true);
-  assert.equal(result.queueState.provider, "gemini-canvas");
+  assert.equal(result.runtime.provider_id, "gemini-canvas");
+  assert.equal(result.runtime.provider_id_canonical, "gemini-web");
+  assert.equal(result.runtime.provider_id_legacy, "gemini-canvas");
+  assert.equal(result.runtime.provider_family, "gemini-web");
+  assert.deepEqual(result.runtime.provider_aliases, ["gemini-canvas", "gemini-web"]);
+  assert.equal(result.queueState.provider, "gemini-web");
+  assert.equal(result.queueState.provider_canonical, "gemini-web");
+  assert.equal(result.queueState.provider_legacy, "gemini-canvas");
   assert.equal(result.queueState.queues[0].mode, "profile-serial");
   assert.equal(result.queueState.queues[0].depth.pending, 1);
   assert.equal(result.queueState.queues[0].depth.running, 0);
@@ -270,11 +283,15 @@ test("normalizeCanvasHealth handles thin /health response (auto-detects non-rich
     timestamp: "2026-04-20 17:45:57.725 [UTC]",
   };
   const result = normalizeCanvasHealth(input);
-  assert.equal(result.provider, "gemini-canvas");
+  assert.equal(result.provider, "gemini-web");
+  assert.equal(result.providerCanonical, "gemini-web");
+  assert.equal(result.providerFamily, "gemini-web");
+  assert.equal(result.providerLegacy, "gemini-canvas");
   assert.equal(result.status, "ok");
   assert.equal(result.health.browser_connected, false);
   assert.equal(result.health.service_alive, null);   // thin /health has no service_alive
   assert.equal(result.health.blocked_by, null);      // thin /health has no blocked_by
+  assert.equal(result.runtime.provider_family, "gemini-web");
   assert.equal(result.runtime.queue, null);
   assert.equal(result.queueState, null);
 });
@@ -283,6 +300,8 @@ test("normalizeCanvasHealth rich runtime_status response preserves upstream_heal
   const input = {
     contract_version: "wcapi.browser_worker_runtime.v1",
     provider_id: "gemini-canvas",
+    provider_id_canonical: "gemini-web",
+    provider_id_legacy: "gemini-canvas",
     provider_type: "browser-session",
     status: "ok",
     service_alive: true,
@@ -290,6 +309,9 @@ test("normalizeCanvasHealth rich runtime_status response preserves upstream_heal
     cdp_ready: true,
     browser_connected: true,
     blocked_by: "none",
+    provider_family: "gemini-web",
+    provider_aliases: ["gemini-canvas", "gemini-web"],
+    transport: { id: "canvas-share-bridge", compatibility_path: "providers/canvas-to-api" },
     upstream_health: { status: "ok", browserConnected: true },
     queue: {
       supported: true,
@@ -302,8 +324,26 @@ test("normalizeCanvasHealth rich runtime_status response preserves upstream_heal
   const result = normalizeCanvasHealth(input);
   assert.equal(result.runtime.upstream_status, "ok");
   assert.equal(result.runtime.upstream_browserConnected, true);
+  assert.equal(result.runtime.transport.id, "canvas-share-bridge");
   assert.equal(result.health.service_alive, true);
   assert.equal(result.health.blocked_by, "none");
+  assert.equal(result.providerCanonical, "gemini-web");
+});
+
+test("normalizeCanvasHealth prefers provider_id_canonical over provider_family when both exist", () => {
+  const input = {
+    contract_version: "wcapi.browser_worker_runtime.v1",
+    provider_id: "gemini-canvas",
+    provider_id_canonical: "gemini-web",
+    provider_id_legacy: "gemini-canvas",
+    provider_family: "stale-family",
+    provider_aliases: ["gemini-canvas", "gemini-web"],
+    status: "ok",
+  };
+  const result = normalizeCanvasHealth(input);
+  assert.equal(result.provider, "gemini-web");
+  assert.equal(result.providerCanonical, "gemini-web");
+  assert.equal(result.providerLegacy, "gemini-canvas");
 });
 
 // ─── normalizeSub2apiHealth ────────────────────────────────────────────────────
@@ -409,7 +449,7 @@ test("normalizeOpsDoctor handles checks with no detail field", () => {
 test("buildSummary counts statuses correctly", () => {
   const providers = [
     { provider: "gpt-web-api", status: "ok" },
-    { provider: "gemini-canvas", status: "ok" },
+    { provider: "gemini-web", status: "ok" },
     { provider: "ds-free-api", status: "degraded" },
     { provider: "unknown", status: "error" },
   ];

@@ -1,0 +1,21 @@
+{
+  "workers": [
+    {
+      "id": "py-machine",
+      "label": "Py Machine",
+      "enabled": true,
+      "base_url": "http://10.0.0.12:7788",
+      "shared_token": "change-me",
+      "capabilities": ["chat.completion"],
+      "priority": 100,
+      "timeout_ms": 45000,
+      "metadata": {
+        "role": "private-worker",
+        "host": "colocrossing-ny",
+        "provider_id": "qwen2api",
+        "runtime_tier": "tier0_lightweight_text",
+        "integration_class": "lightweight_text_boundary"
+      }
+    }
+  ]
+}

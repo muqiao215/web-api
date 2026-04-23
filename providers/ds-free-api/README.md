@@ -1,6 +1,6 @@
 # ds-free-api
 
-This provider now has a real upstream source slice inside the monorepo.
+This provider now has a real upstream source slice inside the monorepo, but its practical shape is still **external worker + generic shim**.
 
 ## Layout
 
@@ -36,6 +36,8 @@ Current unification path:
 - worker surface: `127.0.0.1:5317`
 - generic shim source: [`shims/chat-responses`](../../shims/chat-responses)
 - local shim target: `127.0.0.1:5327`
+
+That is the important architecture fact: the repo is currently integrating an external worker and normalizing it through a generic shim, not replacing the worker with a repo-native rewrite.
 
 ## Integration Rule
 

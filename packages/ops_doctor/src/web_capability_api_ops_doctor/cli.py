@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import pathlib
 import socket
 import subprocess
 import sys
@@ -10,29 +11,36 @@ import urllib.request
 from dataclasses import dataclass, asdict
 from typing import Any
 
+GEMINI_WEB_CANONICAL_PROVIDER_ID = "gemini-web"
+GEMINI_WEB_COMPAT_PROVIDER_ID = "gemini-canvas"
+GEMINI_WEB_RUNTIME_HTTP_CHECK = "gemini-web-runtime"
+GEMINI_WEB_RUNTIME_COMMAND_CHECK = "gemini-web-browser-worker"
+
 
 HTTP_CHECKS = [
     ("sub2api", "http://127.0.0.1:18080/health"),
     ("gpt-web-api", "http://127.0.0.1:4242/health"),
     ("gpt-web-responses", "http://127.0.0.1:4252/health"),
     ("ds-free-responses", "http://127.0.0.1:5327/health"),
-    ("canvas-to-api", "http://127.0.0.1:7861/health"),
+    (GEMINI_WEB_RUNTIME_HTTP_CHECK, "http://127.0.0.1:7862/health"),
 ]
+
+REPO_ROOT = pathlib.Path(__file__).resolve().parents[4]
 
 RUNTIME_HTTP_CHECKS = [
     ("gpt-browser-worker", "http://127.0.0.1:4242/health", "runtime_contract"),
 ]
 
 RUNTIME_COMMAND_CHECKS = [
-    ("canvas-browser-worker", ["node", "providers/canvas-to-api/runtime_status.mjs"]),
-    ("gpt-provider-diagnostic", ["node", "packages/ops_doctor/src/diagnose.mjs"]),
+    (GEMINI_WEB_RUNTIME_COMMAND_CHECK, ["node", str(REPO_ROOT / "providers/gemini-web/runtime_status.mjs")]),
+    ("gpt-provider-diagnostic", ["node", str(REPO_ROOT / "packages/ops_doctor/src/diagnose.mjs")]),
 ]
 
 TCP_CHECKS = [
     ("chrome-cdp", "127.0.0.1", 9222),
-    ("gemini-canvas-cdp-a", "127.0.0.1", 9231),
-    ("gemini-canvas-cdp-b", "127.0.0.1", 9232),
-    ("gemini-canvas-novnc", "127.0.0.1", 6081),
+    ("gemini-web-cdp-a", "127.0.0.1", 9231),
+    ("gemini-web-cdp-b", "127.0.0.1", 9232),
+    ("gemini-web-novnc", "127.0.0.1", 6081),
     ("ds-free-api", "127.0.0.1", 5317),
     ("ds-free-responses", "127.0.0.1", 5327),
 ]
@@ -79,26 +87,29 @@ def check_http(timeout: float) -> list[CheckResult]:
         if error:
             results.append(CheckResult("http", name, "FAIL", error))
             continue
-        if name == "canvas-to-api" and payload and payload.get("browserConnected") is False:
-            results.append(CheckResult("http", name, "WARN", "service ok but browserConnected=false"))
-            continue
         results.append(CheckResult("http", name, "OK", summarize_payload(payload)))
     return results
 
 
 def summarize_runtime(payload: dict[str, Any]) -> str:
     queue = payload.get("queue") or {}
+    canonical_provider_id = (
+        payload.get("provider_id_canonical") or payload.get("provider_family") or payload.get("provider_id")
+    )
+    legacy_provider_id = payload.get("provider_id_legacy") or payload.get("provider_id")
+    transport = payload.get("transport") or {}
     profile_bits = []
     for profile in payload.get("profiles") or []:
         profile_bits.append(
             f"{profile.get('id')}:{profile.get('logged_in')}/{profile.get('cdp_ready')}/{profile.get('browser_connected')}"
         )
     queue_bit = (
-        f"mode={queue.get('mode')} pending={queue.get('pending')} "
-        f"running={queue.get('running')} locks={queue.get('locks_active')}"
+        f"mode={queue.get('mode')} pending={(queue.get('depth') or {}).get('pending')} "
+        f"running={(queue.get('depth') or {}).get('running')} locks={queue.get('locks_active')}"
     )
     profile_summary = ", ".join(profile_bits) if profile_bits else "none"
     return (
+        f"provider={canonical_provider_id} legacy={legacy_provider_id} transport={transport.get('id')} "
         f"status={payload.get('status')} logged_in={payload.get('logged_in')} "
         f"browserConnected={payload.get('browserConnected', payload.get('browser_connected'))} "
         f"cdp_ready={payload.get('cdp_ready')} {queue_bit} profiles=[{profile_summary}]"
@@ -173,6 +184,21 @@ def check_runtime_commands(timeout: float) -> list[CheckResult]:
 def summarize_payload(payload: dict[str, Any] | None) -> str:
     if not payload:
         return "empty response"
+    if payload.get("service") == "gpt_web_api":
+        providers = payload.get("providers") or []
+        provider_bits = []
+        for provider in providers:
+            if isinstance(provider, dict):
+                provider_bits.append(
+                    f"{provider.get('id')}:{provider.get('runtime_tier')}:{provider.get('integration_class')}"
+                )
+        routing = payload.get("center_routing_summary") or {}
+        return (
+            f"service={payload.get('service')} ok={payload.get('ok')} "
+            f"text_pref={routing.get('text_chat_preferred_tier')} "
+            f"browser_tier={routing.get('browser_capability_tier')} "
+            f"providers=[{', '.join(provider_bits) if provider_bits else 'none'}]"
+        )
     if "status" in payload:
         return f"status={payload['status']}"
     if "ok" in payload:

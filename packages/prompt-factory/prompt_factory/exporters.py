@@ -5,6 +5,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+GPT_PROVIDER_MODEL_TAGS = {"gpt-image", "gpt-image-2", "chatgpt-images"}
+
 
 def _now_epoch() -> float:
     return datetime.now(timezone.utc).timestamp()
@@ -19,13 +21,23 @@ def _write_json(path: Path, data: Any) -> None:
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
+def _is_gpt_provider_prompt(item: dict[str, Any]) -> bool:
+    model_tags = {str(tag).strip() for tag in (item.get("model_tags") or []) if str(tag).strip()}
+    return bool(model_tags & GPT_PROVIDER_MODEL_TAGS)
+
+
 def export_gpt_prompt_pool(pool: dict[str, Any], path: Path) -> None:
     prompts = []
+    source_counts: dict[str, int] = {}
     for item in pool["prompts"]:
+        if not _is_gpt_provider_prompt(item):
+            continue
+        source = item["source"]
+        source_counts[source] = source_counts.get(source, 0) + 1
         prompts.append(
             {
                 "id": item["id"],
-                "source": item["source"],
+                "source": source,
                 "source_id": item["source_id"],
                 "number": item["number"],
                 "title": item["title"],
@@ -50,7 +62,7 @@ def export_gpt_prompt_pool(pool: dict[str, Any], path: Path) -> None:
             "version": 1,
             "fetched_at": _now_epoch(),
             "fetched_at_iso": _now_iso(),
-            "source_counts": pool["source_counts"],
+            "source_counts": source_counts,
             "errors": pool.get("errors") or [],
             "prompt_count": len(prompts),
             "prompts": prompts,

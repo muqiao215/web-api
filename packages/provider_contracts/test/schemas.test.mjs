@@ -380,6 +380,10 @@ test("browser-worker-runtime: extends runtime-health", () => {
   const instance = {
     contract_version: "1.0.0",
     provider_id: "gpt-web",
+    provider_id_canonical: "gpt-web",
+    provider_id_legacy: "gpt-web",
+    provider_family: "gpt-web",
+    provider_aliases: ["gpt-web"],
     provider_type: "browser-session",
     checked_at: new Date().toISOString(),
     status: "ok",

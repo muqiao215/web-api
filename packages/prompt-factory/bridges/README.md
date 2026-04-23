@@ -20,6 +20,12 @@
 
 - `builds/*/providers/gpt/prompt_pool.json`
 
+这里的 `providers/gpt/prompt_pool.json` 现在应理解为：
+
+- 面向 GPT 图像链路的 **专属 prompt 池**
+- 不是 unified 全量图像 prompt 的简单镜像
+- 默认只包含明确标注为 GPT 专属模型的 prompt
+
 ## `telegram_canvas_bot`
 
 当前 Banana 已支持本地 prompt pool 路径列表：

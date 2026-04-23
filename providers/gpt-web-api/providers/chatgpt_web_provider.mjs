@@ -1,7 +1,11 @@
+import { INTEGRATION_CLASSES, RUNTIME_TIERS } from "../services/runtime_tier_policy.mjs";
+
 export class ChatGPTWebProvider {
   id = "chatgpt-web";
   name = "ChatGPT Web";
   type = "browser-session";
+  runtime_tier = RUNTIME_TIERS.BROWSER_CAPABILITY;
+  integration_class = INTEGRATION_CLASSES.REPO_NATIVE_RUNTIME;
   capabilities = {
     chat: true,
     streaming: true,
@@ -27,12 +31,18 @@ export class ChatGPTWebProvider {
     ];
   }
 
+  defaultImageModel() {
+    return "chatgpt-images";
+  }
+
   descriptor() {
     return {
       id: this.id,
       object: "provider",
       name: this.name,
       type: this.type,
+      runtime_tier: this.runtime_tier,
+      integration_class: this.integration_class,
       capabilities: this.capabilities,
       models: this.models().map((model) => model.id),
     };
@@ -46,8 +56,8 @@ export class ChatGPTWebProvider {
     return this.operations.chatCompletionStream(messages, options, onDelta);
   }
 
-  generateImage(prompt) {
-    return this.operations.generateImage(prompt);
+  generateImage(prompt, options = {}) {
+    return this.operations.generateImage(prompt, options);
   }
 
   healthCheck() {

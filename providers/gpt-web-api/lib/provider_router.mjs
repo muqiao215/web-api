@@ -1,6 +1,7 @@
 export class ProviderRouter {
   constructor() {
     this.providers = new Map();
+    this.providerAliases = new Map();
     this.defaultProviderId = "";
   }
 
@@ -11,7 +12,16 @@ export class ProviderRouter {
     if (this.providers.has(provider.id)) {
       throw new Error(`Provider already registered: ${provider.id}`);
     }
+    const aliases = this.#extractAliases(provider);
+    for (const alias of aliases) {
+      if (this.providers.has(alias) || this.providerAliases.has(alias)) {
+        throw new Error(`Provider alias already registered: ${alias}`);
+      }
+    }
     this.providers.set(provider.id, provider);
+    for (const alias of aliases) {
+      this.providerAliases.set(alias, provider.id);
+    }
     if (isDefault || !this.defaultProviderId) {
       this.defaultProviderId = provider.id;
     }
@@ -23,7 +33,8 @@ export class ProviderRouter {
   }
 
   getProvider(providerId) {
-    const provider = this.providers.get(providerId);
+    const resolvedProviderId = this.providerAliases.get(providerId) || providerId;
+    const provider = this.providers.get(resolvedProviderId);
     if (!provider) {
       throw new Error(`Unknown provider: ${providerId}`);
     }
@@ -77,5 +88,14 @@ export class ProviderRouter {
       throw new Error(`Unknown model: ${modelId}`);
     }
     return owner;
+  }
+
+  #extractAliases(provider) {
+    const aliases = Array.isArray(provider?.aliases)
+      ? provider.aliases
+      : Array.isArray(provider?.descriptor?.()?.aliases)
+        ? provider.descriptor().aliases
+        : [];
+    return [...new Set(aliases.map((alias) => String(alias || "").trim()).filter((alias) => alias && alias !== provider.id))];
   }
 }

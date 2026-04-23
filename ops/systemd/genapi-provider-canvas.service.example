@@ -1,15 +1,17 @@
 [Unit]
-Description=GenAPI provider - Canvas/Gemini bridge
+Description=GenAPI provider - Gemini Web canvas-share bridge
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
-WorkingDirectory=/root/.ductor/workspace/web_capability_api/providers/canvas-to-api
+# Canonical launcher now lives under providers/gemini-web/ and delegates into
+# the current canvas-share upstream runtime. Live unit naming stays unchanged.
+WorkingDirectory=/root/.ductor/workspace/web_capability_api
 EnvironmentFile=-/root/.ductor/.env
 EnvironmentFile=-/root/.ductor/workspace/web_capability_api/ops/env/common.env
 EnvironmentFile=-/root/.ductor/workspace/web_capability_api/ops/env/providers/canvas.env
-ExecStart=/usr/local/bin/bun run start
+ExecStart=/usr/bin/env node /root/.ductor/workspace/web_capability_api/providers/gemini-web/start.mjs
 Restart=always
 RestartSec=5
 

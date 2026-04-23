@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "start": "node start.mjs",
     "check": "echo migrate or wrap the upstream Canvas worker here later",
     "runtime:status": "node runtime_status.mjs"
   }

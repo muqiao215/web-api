@@ -16,6 +16,7 @@ import {
 export function createOpenAIRouteHandler({
   providerRouter,
   providerAdminService,
+  centerJobService = null,
   mediaStore,
   sessionAffinity,
   chatState,
@@ -35,7 +36,10 @@ export function createOpenAIRouteHandler({
     if (req.method === "GET" && pathname === "/v1/models") {
       sendJson(res, 200, {
         object: "list",
-        data: providerRouter.listModels(),
+        data: providerRouter
+          .listModels()
+          .map((model) => providerAdminService.getModel(model.id))
+          .filter(Boolean),
       });
       return true;
     }
@@ -75,6 +79,27 @@ export function createOpenAIRouteHandler({
         object: "list",
         data: jobQueue.list(),
       });
+      return true;
+    }
+
+    if (req.method === "POST" && pathname === "/v1/jobs") {
+      try {
+        if (!centerJobService || typeof centerJobService.createJob !== "function") {
+          sendJson(res, 501, {
+            error: {
+              message: "center job service is not configured",
+            },
+          });
+          return true;
+        }
+
+        const body = await readJsonBody(req);
+        const job = await centerJobService.createJob(body);
+        sendJson(res, 202, job);
+      } catch (error) {
+        const { status, body } = errorBody(error);
+        sendJson(res, status, body);
+      }
       return true;
     }
 
@@ -268,6 +293,8 @@ export function createOpenAIRouteHandler({
               ],
               meta: {
                 conversation_url: result.conversation_url,
+                streaming_strategy: result.streaming_strategy || selectedProvider.streaming_strategy || null,
+                streaming_degraded: result.streaming_degraded === true,
               },
             });
             sendSseDone(res);
@@ -334,7 +361,12 @@ export function createOpenAIRouteHandler({
           providerId: typeof body.provider === "string" ? body.provider.trim() : "",
           modelId: typeof body.model === "string" ? body.model.trim() : "",
         });
-        const selectedModel = body.model || "chatgpt-images";
+        const selectedModel =
+          body.model ||
+          (typeof selectedProvider.defaultImageModel === "function"
+            ? selectedProvider.defaultImageModel()
+            : selectedProvider.models()[0]?.id) ||
+          selectedProvider.id;
 
         if (!prompt) {
           const { status, body: errorPayload } = jsonError("prompt is required", 400, "invalid_request_error");
@@ -376,7 +408,7 @@ export function createOpenAIRouteHandler({
             for (let i = 0; i < n; i += 1) {
               items.push(
                 await withTimeout(
-                  () => selectedProvider.generateImage(prompt),
+                  () => selectedProvider.generateImage(prompt, { model: selectedModel, size, responseFormat }),
                   imageTimeoutMs,
                   `Image generation ${i + 1}/${n}`
                 )
@@ -429,6 +461,8 @@ export function createOpenAIRouteHandler({
             n,
             response_format: responseFormat,
             provider: selectedProvider.id,
+            provider_admission: results[0].admission || null,
+            provider_admission_detail: results[0].admission_detail || null,
             media_ids: media.map((item) => item.id),
             outputs: results.map((result) => ({
               conversation_url: result.conversation_url,

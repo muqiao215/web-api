@@ -1,8 +1,21 @@
 # gpt-web-api
 
-`gpt-web-api` exposes a small local OpenAI-style HTTP API backed by the real logged-in ChatGPT web session in the server browser profile.
+`gpt-web-api` exposes a small local OpenAI-style northbound HTTP API.
+
+It is still anchored by the real logged-in ChatGPT web session in the server browser profile, but the same provider router now also exposes Gemini Web as a first-class provider surface (`gemini-web`, legacy alias `gemini-canvas`).
 
 This project intentionally uses browser automation instead of reverse-engineering ChatGPT private APIs. The browser profile is the identity container.
+
+## Placement In The Repo
+
+`gpt-web-api` is the clearest **repo-native runtime** in `web-api`.
+
+It should be read as a browser-backed capability runtime and unified northbound entrypoint, not as a generic cheapest-text provider. Its best use cases are the things that actually benefit from a real logged-in browser capability session:
+
+- browser-native conversation continuity
+- file upload and attachment flows
+- image generation
+- ChatGPT-specific research and tool behavior
 
 ## Current API
 
@@ -92,6 +105,16 @@ curl -N -sS -X POST http://127.0.0.1:4242/v1/chat/completions \
   -H 'Content-Type: application/json' \
   -d '{"model":"chatgpt-web","stream":true,"messages":[{"role":"user","content":"Write one short sentence."}]}'
 ```
+
+Gemini chat through the same northbound API:
+
+```bash
+curl -sS -X POST http://127.0.0.1:4242/v1/chat/completions \
+  -H 'Content-Type: application/json' \
+  -d '{"provider":"gemini-web","model":"gemini-3-flash","messages":[{"role":"user","content":"Reply with exactly OK."}]}'
+```
+
+The canonical Gemini provider id is `gemini-web`. The legacy alias `gemini-canvas` is still accepted for request routing compatibility.
 
 List local conversation mappings:
 
@@ -187,7 +210,8 @@ curl -sS -X POST http://127.0.0.1:4242/v1/images/generations \
 - The queue now has explicit job records; image generations return a `job` object in the response body for traceability.
 - Job records are persisted under `data/jobs.json`; if the server restarts mid-job, unfinished jobs are marked failed on reload instead of disappearing silently.
 - The API now goes through a small provider router instead of hard-coding a single provider in every route.
-- Provider metadata is exposed through `/v1/providers`; current implementation registers one `ChatGPTWebProvider`, but `/v1/models`, `/v1/models/:model_id`, `/v1/providers`, `/health`, chat, and image routes already resolve through the router.
+- Provider metadata is exposed through `/v1/providers`; current implementation registers both the repo-native `ChatGPTWebProvider` and the Gemini Web provider backed by the canonical `providers/gemini-web/` runtime, and `/v1/models`, `/v1/models/:model_id`, `/v1/providers`, `/health`, chat, and image routes resolve through the same router.
+- `/v1/providers` and `/v1/models` expose `gemini-web` as the canonical Gemini provider/model owner. `gemini-canvas` remains an accepted legacy alias for request routing and may still appear as a compatibility id in runtime payloads.
 - Provider capability and health detail is exposed through `/admin/providers` and `/admin/providers/:provider_id`; this includes model details, capability flags, CDP readiness, queue depth, session lock count, and runtime paths.
 - `server.mjs` is now a thin bootstrap. Browser automation lives in `services/browser_runtime.mjs`, chat/session/file state in `services/chat_state_service.mjs` and `services/chat_service.mjs`, provider admin serialization in `services/provider_admin_service.mjs`, and HTTP routing in `routes/`.
 - Generated images are indexed in `data/media.json` and exposed via `/v1/media`.
@@ -196,7 +220,8 @@ curl -sS -X POST http://127.0.0.1:4242/v1/images/generations \
 - Conversation affinity is additionally persisted under `data/session_affinity.json`, binding each local `conversation_id` to provider/model/url/lock key.
 - For new conversations, incoming `messages` are formatted into one prompt. For existing conversations, the latest user message is sent to avoid duplicating client-side history.
 - Existing conversations execute behind a session lock keyed by `conversation_id`, so future parallel worker expansion does not allow the same ChatGPT thread to be mutated concurrently.
-- `stream: true` returns OpenAI-like SSE chunks plus `[DONE]`.
+- Unified northbound chat is available for both `chatgpt-web` and `gemini-web` through `POST /v1/chat/completions`.
+- `stream: true` always uses OpenAI-style SSE framing at the northbound layer. For `chatgpt-web` this can emit incremental deltas; for `gemini-web` it is explicitly degraded to a single assistant delta event followed by the terminal stop chunk and `[DONE]`, with `meta.streaming_strategy=single_event_degraded` and `meta.streaming_degraded=true`.
 - `POST /v1/files` stages files under `uploads/` and returns local OpenAI-like `file_id` records.
 - Chat accepts `file_ids` and uploads those local files into the real ChatGPT page before sending the prompt. Image files use `#upload-photos`; other files use `#upload-files`.
 - Images use ChatGPT Images in the logged-in browser profile and save generated PNGs under `generated/`.
@@ -204,6 +229,7 @@ curl -sS -X POST http://127.0.0.1:4242/v1/images/generations \
 - `n` is supported up to `4`, executed sequentially.
 - `response_format` supports `url` and `b64_json`.
 - Known ChatGPT web image rate limits are surfaced as API errors instead of silently hanging when possible.
+- `POST /v1/images/generations` also resolves `gemini-web`, but Gemini image admission is still experimental / degraded-first and should not be treated as parity with chat availability.
 - `GET /healthz` is a pure liveness probe; `GET /readyz` checks CDP/browser readiness and should be used for operational gating.
 
 ## Current Limitation

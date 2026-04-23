@@ -14,6 +14,7 @@ export function createProviderAdminService({
   // Phase 4: optional pool integrations — backward-compatible (null when not wired yet)
   providerPool = null,
   proxyPool = null,
+  getCenterRoutingSummary = null,
   // Phase 5A: optional path check — receives a string path, returns { writable: bool, error?: string }
   checkPathWritability = null,
 }) {
@@ -41,6 +42,8 @@ export function createProviderAdminService({
       ...model,
       provider_name: descriptor.name,
       provider_type: descriptor.type,
+      runtime_tier: descriptor.runtime_tier ?? null,
+      integration_class: descriptor.integration_class ?? null,
       capabilities: descriptor.capabilities,
     };
   }
@@ -52,15 +55,35 @@ export function createProviderAdminService({
     return inspectBrowserReadiness();
   }
 
+  async function providerRuntimeStatus(provider) {
+    if (typeof provider.runtimeStatus === "function") {
+      return provider.runtimeStatus();
+    }
+    return typeof inspectRuntimeStatus === "function" ? inspectRuntimeStatus() : null;
+  }
+
+  async function providerTransport(provider) {
+    if (typeof provider.transportDetail === "function") {
+      return provider.transportDetail();
+    }
+    return {
+      cdp_http: cdpHttp,
+    };
+  }
+
   async function getProviderDetail(providerId) {
     const provider = providerRouter.getProvider(providerId);
     const descriptor = provider.descriptor();
     const health = await providerHealth(provider);
-    const runtimeContract = typeof inspectRuntimeStatus === "function" ? await inspectRuntimeStatus() : null;
+    const runtimeContract = await providerRuntimeStatus(provider);
     const detail = {
       ...descriptor,
       models: provider.models().map((model) => model.id),
       model_details: provider.models(),
+      runtime_policy: {
+        runtime_tier: descriptor.runtime_tier ?? null,
+        integration_class: descriptor.integration_class ?? null,
+      },
       health,
       runtime: queueMetrics(),
       runtime_contract: runtimeContract,
@@ -71,9 +94,7 @@ export function createProviderAdminService({
         output_dir: outputDir,
         upload_dir: uploadDir,
       },
-      transport: {
-        cdp_http: cdpHttp,
-      },
+      transport: await providerTransport(provider),
     };
     // Phase 4: attach pool status when pool packages are wired
     if (providerPool) {
@@ -124,8 +145,12 @@ export function createProviderAdminService({
       providers: providerRouter.listProviderDescriptors().map((item) => ({
         id: item.id,
         type: item.type,
+        runtime_tier: item.runtime_tier ?? null,
+        integration_class: item.integration_class ?? null,
         capabilities: item.capabilities,
         models: item.models,
+        admission: item.admission ?? null,
+        route_meta: item.route_meta ?? null,
       })),
       queue_depth: getQueueDepth(),
       session_locks: getSessionLockCount(),
@@ -138,6 +163,7 @@ export function createProviderAdminService({
       upload_dir: uploadDir,
       media_index_path: mediaPath,
       runtime_contract: runtimeContract,
+      center_routing_summary: typeof getCenterRoutingSummary === "function" ? getCenterRoutingSummary() : null,
     };
     // Phase 4: attach read-only pool status when pool packages are wired
     if (providerPool) {

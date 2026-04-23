@@ -1,0 +1,10 @@
+{
+  "name": "@web-capability-api/gemini-web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node start.mjs",
+    "check": "echo Gemini Web provider surface now owns the canonical cookie-auth runtime; image admission remains experimental",
+    "runtime:status": "node runtime_status.mjs"
+  }
+}

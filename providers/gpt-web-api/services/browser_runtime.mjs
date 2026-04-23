@@ -59,6 +59,310 @@ function isImageFile(file) {
   return /^image\//i.test(file.mime_type || "") || /\.(png|jpe?g|webp|gif)$/i.test(file.filename || file.path || "");
 }
 
+function normalizeComposerText(text) {
+  return String(text || "").replace(/\s+/g, " ").trim();
+}
+
+function classifyImageComposerFailure({
+  reason = "",
+  editorText = "",
+  prompt = "",
+  hadPreflightStale = false,
+  attemptedKeyboardFallback = false,
+} = {}) {
+  const normalizedPrompt = normalizeComposerText(prompt);
+  const normalizedEditorText = normalizeComposerText(editorText);
+  const appendedPrompt =
+    normalizedPrompt &&
+    normalizedEditorText.includes(normalizedPrompt) &&
+    normalizedEditorText !== normalizedPrompt;
+  const oversizedEditorText =
+    normalizedPrompt &&
+    normalizedEditorText.length > Math.max(normalizedPrompt.length + 32, normalizedPrompt.length * 2);
+  const recoverable =
+    reason === "send button still disabled" &&
+    (hadPreflightStale || appendedPrompt || oversizedEditorText);
+
+  if (recoverable) {
+    return {
+      recoverable: true,
+      code: "browser_image_composer_stale",
+      message: "Image composer stale-state: send button still disabled after fill",
+    };
+  }
+
+  if (reason === "send button still disabled" && attemptedKeyboardFallback) {
+    return {
+      recoverable: false,
+      code: "browser_image_composer_inert",
+      message: "Image composer inert after synthetic input: send button still disabled",
+    };
+  }
+
+  return {
+    recoverable: false,
+    code: "",
+    message: reason || "Failed to submit image prompt",
+  };
+}
+
+function shouldCleanupImageComposerError(error) {
+  const message = String(error?.message || error || "");
+  return /send button still disabled|Image composer stale-state|Image composer inert|Timed out waiting for image result/i.test(message);
+}
+
+async function readImageComposerState(page) {
+  return page.evaluate(`(() => { /* image-composer-read */
+    const editor = document.querySelector('div[contenteditable="true"][role="textbox"]');
+    const send = document.querySelector('button[data-testid="send-button"]');
+    if (!editor) return { ok: false, reason: 'editor not found', editorText: '', sendDisabled: true };
+    if (!send) return { ok: false, reason: 'send button not found', editorText: editor.innerText || '', sendDisabled: true };
+    return {
+      ok: true,
+      editorText: editor.innerText || '',
+      sendDisabled: !!send.disabled || send.getAttribute('aria-disabled') === 'true',
+    };
+  })()`);
+}
+
+async function focusImageComposer(page) {
+  const focusResult = await page.evaluate(`(() => { /* image-composer-focus */
+    const editor = document.querySelector('div[contenteditable="true"][role="textbox"]');
+    if (!editor) return { ok: false, reason: 'editor not found' };
+    editor.focus();
+    return { ok: true };
+  })()`);
+
+  if (!focusResult?.ok) {
+    throw new Error(focusResult?.reason || "Failed to focus image editor");
+  }
+}
+
+async function clearImageComposer(page) {
+  const result = await page.evaluate(`(() => { /* image-composer-clear */
+    const editor = document.querySelector('div[contenteditable="true"][role="textbox"]');
+    const send = document.querySelector('button[data-testid="send-button"]');
+    if (!editor) return { ok: false, reason: 'editor not found', editorText: '', sendDisabled: true };
+    editor.focus();
+    editor.innerHTML = '';
+    editor.textContent = '';
+    editor.dispatchEvent(new Event('input', { bubbles: true }));
+    editor.dispatchEvent(new Event('change', { bubbles: true }));
+    return {
+      ok: true,
+      editorText: editor.innerText || '',
+      sendDisabled: !!send?.disabled || send?.getAttribute('aria-disabled') === 'true',
+    };
+  })()`);
+
+  if (!result?.ok) {
+    throw new Error(result?.reason || "Failed to clear image composer");
+  }
+  return result;
+}
+
+async function cleanupImageComposer(page) {
+  try {
+    return await clearImageComposer(page);
+  } catch {
+    return null;
+  }
+}
+
+async function preflightImageComposer(page) {
+  let state = await readImageComposerState(page);
+  if (!state?.ok) {
+    throw new Error(state?.reason || "Failed to inspect image composer");
+  }
+
+  let clearedStaleComposer = false;
+  if (normalizeComposerText(state.editorText)) {
+    await clearImageComposer(page);
+    clearedStaleComposer = true;
+    state = await readImageComposerState(page);
+    if (!state?.ok) {
+      throw new Error(state?.reason || "Failed to inspect image composer after cleanup");
+    }
+  }
+
+  await focusImageComposer(page);
+  return {
+    clearedStaleComposer,
+    state,
+  };
+}
+
+async function wakeImageComposerAfterInsert(page, prompt) {
+  const result = await page.evaluate(`(() => { /* image-composer-wake */
+    const editor = document.querySelector('div[contenteditable="true"][role="textbox"]');
+    const send = document.querySelector('button[data-testid="send-button"]');
+    if (!editor) return { ok: false, reason: 'editor not found', editorText: '', sendDisabled: true };
+    if (!send) return { ok: false, reason: 'send button not found', editorText: editor.innerText || '', sendDisabled: true };
+
+    const text = editor.innerText || editor.textContent || '';
+    editor.focus();
+
+    const selection = window.getSelection?.();
+    if (selection) {
+      const range = document.createRange();
+      range.selectNodeContents(editor);
+      range.collapse(false);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+
+    const dispatch = (event) => {
+      try {
+        editor.dispatchEvent(event);
+      } catch {}
+    };
+
+    dispatch(new Event('beforeinput', { bubbles: true, cancelable: true }));
+    if (typeof InputEvent === 'function') {
+      dispatch(new InputEvent('input', {
+        bubbles: true,
+        data: ${JSON.stringify(prompt)},
+        inputType: 'insertText',
+      }));
+    } else {
+      dispatch(new Event('input', { bubbles: true }));
+    }
+    dispatch(new Event('change', { bubbles: true }));
+    dispatch(new KeyboardEvent('keydown', { bubbles: true, key: ' ', code: 'Space' }));
+    dispatch(new KeyboardEvent('keyup', { bubbles: true, key: ' ', code: 'Space' }));
+
+    return {
+      ok: true,
+      editorText: text,
+      sendDisabled: !!send.disabled || send.getAttribute('aria-disabled') === 'true',
+    };
+  })()`);
+
+  if (!result?.ok) {
+    throw new Error(result?.reason || "Failed to wake image composer");
+  }
+  return result;
+}
+
+async function typeIntoImageComposerViaKeyboard(page, prompt, settleDelayMs) {
+  await clearImageComposer(page);
+  await focusImageComposer(page);
+  await page.typeText(prompt);
+  if (settleDelayMs > 0) {
+    await sleep(settleDelayMs);
+  }
+  const state = await readImageComposerState(page);
+  if (!state?.ok) {
+    throw new Error(state?.reason || "Failed to inspect image composer after keyboard input");
+  }
+  return state;
+}
+
+async function fillImageComposer(page, prompt, settleDelayMs) {
+  await page.insertText(prompt);
+  if (settleDelayMs > 0) {
+    await sleep(settleDelayMs);
+  }
+
+  let state = await readImageComposerState(page);
+  if (!state?.ok) {
+    throw new Error(state?.reason || "Failed to inspect image composer after fill");
+  }
+
+  let attemptedKeyboardFallback = false;
+
+  if (state.sendDisabled && normalizeComposerText(state.editorText) === normalizeComposerText(prompt)) {
+    await wakeImageComposerAfterInsert(page, prompt);
+    if (settleDelayMs > 0) {
+      await sleep(settleDelayMs);
+    }
+    state = await readImageComposerState(page);
+    if (!state?.ok) {
+      throw new Error(state?.reason || "Failed to inspect image composer after wake");
+    }
+  }
+
+  if (state.sendDisabled && normalizeComposerText(state.editorText) === normalizeComposerText(prompt)) {
+    attemptedKeyboardFallback = true;
+    state = await typeIntoImageComposerViaKeyboard(page, prompt, settleDelayMs);
+    if (state.sendDisabled && normalizeComposerText(state.editorText) === normalizeComposerText(prompt)) {
+      throw new Error("Image composer inert after synthetic input: send button still disabled");
+    }
+  }
+
+  return {
+    state,
+    attemptedKeyboardFallback,
+  };
+}
+
+async function submitImagePrompt(page, prompt, { settleDelayMs = 800, maxComposerRetries = 1 } = {}) {
+  let attempts = 0;
+  let retries = 0;
+
+  while (true) {
+    attempts += 1;
+    const preflight = await preflightImageComposer(page);
+
+    const fill = await fillImageComposer(page, prompt, settleDelayMs);
+
+    const result = await page.evaluate(`(() => { /* image-composer-submit */
+      const send = document.querySelector('button[data-testid="send-button"]');
+      const editor = document.querySelector('div[contenteditable="true"][role="textbox"]');
+      if (!send) return { ok: false, reason: 'send button not found', editorText: editor?.innerText || '' };
+      if (send.disabled || send.getAttribute('aria-disabled') === 'true') {
+        return {
+          ok: false,
+          reason: 'send button still disabled',
+          editorText: editor?.innerText || '',
+        };
+      }
+      send.click();
+      return { ok: true, editorText: editor?.innerText || '' };
+    })()`);
+
+    if (result?.ok) {
+      return {
+        attempts,
+        retriedComposerStale: retries > 0,
+        clearedStaleComposer: preflight.clearedStaleComposer,
+      };
+    }
+
+    const failure = classifyImageComposerFailure({
+      reason: result?.reason,
+      editorText: result?.editorText,
+      prompt,
+      hadPreflightStale: preflight.clearedStaleComposer,
+      attemptedKeyboardFallback: fill.attemptedKeyboardFallback,
+    });
+
+    await cleanupImageComposer(page);
+
+    if (failure.recoverable && retries < maxComposerRetries) {
+      retries += 1;
+      continue;
+    }
+
+    throw new Error(failure.message);
+  }
+}
+
+function keyDescriptorForChar(char) {
+  if (char === " ") return { key: " ", code: "Space", keyCode: 32 };
+  if (char === "\n") return { key: "Enter", code: "Enter", keyCode: 13 };
+  if (/^[a-z]$/.test(char)) {
+    return { key: char, code: `Key${char.toUpperCase()}`, keyCode: char.toUpperCase().charCodeAt(0) };
+  }
+  if (/^[A-Z]$/.test(char)) {
+    return { key: char, code: `Key${char}`, keyCode: char.charCodeAt(0), modifiers: 8 };
+  }
+  if (/^[0-9]$/.test(char)) {
+    return { key: char, code: `Digit${char}`, keyCode: char.charCodeAt(0) };
+  }
+  return { key: char, code: "", keyCode: char.charCodeAt(0) };
+}
+
 function detectLoginFromPages(pages) {
   const pageSummaries = pages
     .filter((page) => page.type === "page")
@@ -149,6 +453,34 @@ class CdpPage {
 
   async insertText(text) {
     await this.send("Input.insertText", { text });
+  }
+
+  async typeText(text) {
+    for (const char of String(text || "")) {
+      const key = keyDescriptorForChar(char);
+      await this.send("Input.dispatchKeyEvent", {
+        type: "rawKeyDown",
+        key: key.key,
+        code: key.code,
+        windowsVirtualKeyCode: key.keyCode,
+        nativeVirtualKeyCode: key.keyCode,
+        ...(key.modifiers ? { modifiers: key.modifiers } : {}),
+      });
+      await this.send("Input.dispatchKeyEvent", {
+        type: "char",
+        text: char,
+        unmodifiedText: char,
+        ...(key.modifiers ? { modifiers: key.modifiers } : {}),
+      });
+      await this.send("Input.dispatchKeyEvent", {
+        type: "keyUp",
+        key: key.key,
+        code: key.code,
+        windowsVirtualKeyCode: key.keyCode,
+        nativeVirtualKeyCode: key.keyCode,
+        ...(key.modifiers ? { modifiers: key.modifiers } : {}),
+      });
+    }
   }
 
   async setFileInputFiles(selector, files) {
@@ -666,37 +998,44 @@ export function createBrowserRuntime({
     await fs.mkdir(outputDir, { recursive: true });
     return withImagePage(async (page) => {
       await ensureImagePage(page);
-      const existingSources = await snapshotGeneratedImageSources(page);
-      await submitPrompt(page, prompt);
-      const state = await waitForImageResult(page, existingSources);
-      const bytes = await fetchImageBytesInPage(page, state.image.src);
-      const created = Math.floor(Date.now() / 1000);
-      const filename = `chatgpt-image-${created}.png`;
-      const filepath = path.join(outputDir, filename);
-      await fs.writeFile(filepath, bytes.buffer);
+      try {
+        const existingSources = await snapshotGeneratedImageSources(page);
+        await submitImagePrompt(page, prompt);
+        const state = await waitForImageResult(page, existingSources);
+        const bytes = await fetchImageBytesInPage(page, state.image.src);
+        const created = Math.floor(Date.now() / 1000);
+        const filename = `chatgpt-image-${created}.png`;
+        const filepath = path.join(outputDir, filename);
+        await fs.writeFile(filepath, bytes.buffer);
 
-      // Compute enrichment fields (SHA-256, dimensions) from the written file.
-      // artifact_id is generated locally so it can be stored in both
-      // jobs.json result[] and media.json without requiring a write-path round-trip.
-      const artifact_id = `art_${created}_${Math.random().toString(36).slice(2, 10)}`;
-      const digest = sha256(bytes.buffer);
-      const dims = await readImageDimensions(filepath);
+        // Compute enrichment fields (SHA-256, dimensions) from the written file.
+        // artifact_id is generated locally so it can be stored in both
+        // jobs.json result[] and media.json without requiring a write-path round-trip.
+        const artifact_id = `art_${created}_${Math.random().toString(36).slice(2, 10)}`;
+        const digest = sha256(bytes.buffer);
+        const dims = await readImageDimensions(filepath);
 
-      return {
-        created,
-        model: "chatgpt-images",
-        prompt,
-        conversation_url: state.url,
-        output_path: filepath,
-        mime_type: bytes.mimeType,
-        image_url: state.image.src,
-        alt: state.image.alt,
-        // New fields aligned with image-task.outputs / ArtifactOutput schema
-        artifact_id,
-        sha256: digest,
-        width: dims?.width ?? null,
-        height: dims?.height ?? null,
-      };
+        return {
+          created,
+          model: "chatgpt-images",
+          prompt,
+          conversation_url: state.url,
+          output_path: filepath,
+          mime_type: bytes.mimeType,
+          image_url: state.image.src,
+          alt: state.image.alt,
+          // New fields aligned with image-task.outputs / ArtifactOutput schema
+          artifact_id,
+          sha256: digest,
+          width: dims?.width ?? null,
+          height: dims?.height ?? null,
+        };
+      } catch (error) {
+        if (shouldCleanupImageComposerError(error)) {
+          await cleanupImageComposer(page);
+        }
+        throw error;
+      }
     });
   }
 
@@ -886,3 +1225,9 @@ export function createBrowserRuntime({
     inspectRuntimeStatus,
   };
 }
+
+export const __testHooks = {
+  classifyImageComposerFailure,
+  shouldCleanupImageComposerError,
+  submitImagePrompt,
+};

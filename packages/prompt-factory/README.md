@@ -95,6 +95,13 @@ uv run --project packages/prompt-factory \
   - 把当前 profile 的 build 复制到 `builds/promoted/<profile>/`
   - 作为后续消费者应优先读取的稳定版本
 
+补充：
+
+- `unified/prompt_pool.json` 保留全量统一池
+- `providers/gpt/prompt_pool.json` 现在是 **GPT 专属导出**
+  - 只保留明确带 `gpt-image` / `gpt-image-2` / `chatgpt-images` 这类 GPT 专属 `model_tags` 的记录
+  - 不再把 `universal-image-model`、`stable-diffusion`、`atomic-composer` 这类通用或非 GPT 专属 prompt 混进 GPT provider 导出
+
 cron 友好的状态文件会写到 `state/`：
 
 - `state/source_state.json`
@@ -118,7 +125,7 @@ cron 友好的状态文件会写到 `state/`：
 
 - 读取默认英文 `README.md`
 - 按 `## section -> ### Case -> Prompt code block` 抽取 case prompt
-- 人物/人像 prompt 会保留进统一库和 GPT 导出，只在生成侧需要时再筛
+- 人物/人像 prompt 会保留进统一库；如果它本身明确标了 GPT 专属 `model_tags`，也会进入 GPT 导出
 
 `manual_gpt` 用来保存你在对话里临时收集后人工去噪的 GPT prompt：
 

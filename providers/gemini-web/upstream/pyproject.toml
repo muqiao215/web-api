@@ -1,0 +1,18 @@
+[project]
+name = "web-capability-api-gemini-web-runtime"
+version = "0.1.0"
+description = "Repo-owned Gemini Web-first runtime for chat-first and experimental image admission."
+requires-python = ">=3.12"
+dependencies = [
+  "browser-cookie3>=0.20.1",
+  "fastapi>=0.115.0",
+  "gemini-webapi>=2.0.0",
+  "uvicorn>=0.30.0",
+]
+
+[project.scripts]
+wcapi-gemini-web-runtime = "web_capability_api_gemini_web_runtime.server:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

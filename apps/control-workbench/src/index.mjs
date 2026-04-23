@@ -4,7 +4,7 @@
  * Contract version: wcapi.control-workbench.v2
  *
  * Design: this package is intentionally read-only. It fetches from existing HTTP
- * health/status endpoints (GPT admin service, canvas-to-api, sub2api) and
+ * health/status endpoints (GPT admin service, Gemini Web runtime, sub2api) and
  * aggregates them into a unified machine-readable control view. It does NOT
  * modify state, issue commands, or start new services.
  *
@@ -21,13 +21,19 @@
  *   - Direct systemd control
  */
 
+import {
+  GEMINI_WEB_CANONICAL_PROVIDER_ID,
+  GEMINI_WEB_COMPAT_PROVIDER_ID,
+  GEMINI_WEB_PROVIDER_ALIASES,
+} from "../../../providers/gemini-web/lib/runtime_status_shared.mjs";
+
 export const CONTROL_WORKBENCH_VERSION = "wcapi.control-workbench.v2";
 
 // ─── Endpoint registry ────────────────────────────────────────────────────────
 
 const DEFAULT_ENDPOINTS = {
   gptAdmin: "http://127.0.0.1:4242/health",
-  canvasRuntime: "http://127.0.0.1:7861/health",
+  canvasRuntime: "http://127.0.0.1:7862/health",
   sub2api: "http://127.0.0.1:18080/health",
 };
 
@@ -36,13 +42,17 @@ const DEFAULT_ENDPOINTS = {
  * @property {Record<string, string>} [endpoints]  — override default HTTP endpoints
  * @property {number} [timeoutMs]                — fetch timeout in ms (default 3000)
  * @property {string} [opsDoctorPath]            — path to diagnose.mjs (default: repo-relative)
- * @property {string} [canvasRuntimeScriptPath]  — path to canvas runtime_status.mjs (default: repo-relative)
+ * @property {string} [geminiRuntimeScriptPath]  — canonical path to Gemini runtime_status.mjs (default: repo-relative)
+ * @property {string} [canvasRuntimeScriptPath]  — legacy alias for geminiRuntimeScriptPath
  * @property {boolean} [includeSub2api]          — whether to fetch sub2api health (default true)
  */
 
 /**
  * @typedef {object} ProviderSnapshot
  * @property {string} provider
+ * @property {string} [providerCanonical]
+ * @property {string} [providerLegacy]
+ * @property {string[]} [providerAliases]
  * @property {string} status            — "ok" | "degraded" | "blocked" | "error" | "unreachable"
  * @property {string} [providerType]
  * @property {object} [health]
@@ -166,24 +176,47 @@ export function normalizeGptHealth(raw) {
 }
 
 /**
- * Normalize canvas-to-api runtime_status output → ProviderSnapshot
+ * Normalize Gemini runtime_status output → ProviderSnapshot
  *
- * canvas-to-api exposes two data sources:
- *   - HTTP /health → thin {browserConnected, status, timestamp} (no auth required)
- *   - runtime_status.mjs script → rich {provider_id, profiles[], queue, capabilities, …}
+ * Gemini runtime exposes two data sources:
+ *   - HTTP /health → thin/rich health summary (no auth required)
+ *   - runtime_status.mjs script → rich {provider_id, provider_id_canonical, profiles[], queue, capabilities, …}
  *
  * Both shapes are accepted; the normalizer auto-detects richness via contract_version.
+ * For consumer-facing control surfaces, the top-level provider key is promoted
+ * to the canonical Gemini family id when available. Legacy runtime transport id
+ * remains available via providerLegacy and runtime.provider_id.
  *
  * @param {object} raw
  * @returns {ProviderSnapshot}
  */
 export function normalizeCanvasHealth(raw) {
   // Thin /health response: {browserConnected, status, timestamp}
-  // Rich runtime_status response: {contract_version, provider_id, profiles[], …}
+  // Rich runtime_status response: {contract_version, provider_id, provider_id_canonical, profiles[], …}
   const isRich = !!raw.contract_version;
   const status = raw.status === "ok" ? "ok" : raw.status === "degraded" ? "degraded" : raw.status === "blocked" ? "blocked" : "error";
+  const providerAliases =
+    Array.isArray(raw.provider_aliases) && raw.provider_aliases.length > 0
+      ? raw.provider_aliases
+      : [...GEMINI_WEB_PROVIDER_ALIASES];
+  const providerCanonical =
+    raw.provider_id_canonical ??
+    raw.provider_family ??
+    providerAliases.find((alias) => alias === GEMINI_WEB_CANONICAL_PROVIDER_ID) ??
+    GEMINI_WEB_CANONICAL_PROVIDER_ID;
+  const providerLegacy =
+    raw.provider_id_legacy ??
+    raw.provider_id ??
+    providerAliases.find((alias) => alias === GEMINI_WEB_COMPAT_PROVIDER_ID) ??
+    GEMINI_WEB_COMPAT_PROVIDER_ID;
+  const providerRuntimeId = raw.provider_id ?? providerLegacy;
+  const providerPrimary = providerCanonical || providerRuntimeId;
   return {
-    provider: raw.provider_id ?? "gemini-canvas",
+    provider: providerPrimary,
+    providerCanonical,
+    providerFamily: providerCanonical,
+    providerLegacy,
+    providerAliases,
     providerType: raw.provider_type ?? "browser-session",
     status,
     health: {
@@ -194,16 +227,25 @@ export function normalizeCanvasHealth(raw) {
       blocked_by: isRich ? (raw.blocked_by ?? null) : null,
     },
     runtime: {
+      provider_id: providerRuntimeId,
+      provider_id_canonical: providerCanonical,
+      provider_id_legacy: providerLegacy,
+      provider_family: providerCanonical,
+      provider_aliases: providerAliases,
+      transport: raw.transport ?? null,
       queue: raw.queue ?? null,
       upstream_status: isRich ? (raw.upstream_health?.status ?? null) : null,
       upstream_browserConnected: isRich ? (raw.upstream_health?.browserConnected ?? null) : null,
     },
-    accountPool: null, // canvas-to-api does not manage accounts
+    accountPool: null, // Gemini runtime does not manage accounts
     proxyPool: null,
     queueState: raw.queue
       ? {
           contract_version: raw.contract_version ?? null,
-          provider: raw.provider_id ?? null,
+          provider: providerPrimary,
+          provider_canonical: providerCanonical,
+          provider_legacy: providerLegacy,
+          provider_aliases: providerAliases,
           queues: [
             {
               scope: "profile",
@@ -363,8 +405,10 @@ export function createControlBench(options = {}) {
     timeoutMs = 3000,
     includeSub2api = true,
     opsDoctorPath = "",
+    geminiRuntimeScriptPath = "",
     canvasRuntimeScriptPath = "",
   } = options;
+  const resolvedGeminiRuntimeScriptPath = geminiRuntimeScriptPath || canvasRuntimeScriptPath;
 
   const eps = { ...DEFAULT_ENDPOINTS, ...endpoints };
   const errors = [];
@@ -401,35 +445,43 @@ export function createControlBench(options = {}) {
       providers.push({ provider: "gpt-web-api", providerType: "browser-session", status: "unreachable" });
     }
 
-    // canvas: prefer runtime_status.mjs script when available (richer than HTTP /health).
-    // When canvasRuntimeScriptPath is set, spawn the script and skip the thin HTTP /health.
-    // Otherwise fall back to the HTTP /health endpoint.
+    // Gemini/canvas-share bridge: prefer runtime_status.mjs script when available
+    // (richer than HTTP /health). Support the canonical geminiRuntimeScriptPath
+    // and the legacy canvasRuntimeScriptPath alias.
     let canvasNormalized = null;
-    if (canvasRuntimeScriptPath) {
-      const canvasScriptRes = await runCanvasRuntimeStatus(canvasRuntimeScriptPath);
+    if (resolvedGeminiRuntimeScriptPath) {
+      const canvasScriptRes = await runCanvasRuntimeStatus(resolvedGeminiRuntimeScriptPath);
       if (canvasScriptRes.data) {
         try {
           canvasNormalized = normalizeCanvasHealth(canvasScriptRes.data);
         } catch (err) {
-          snapshotErrors.push(`gemini-canvas(script): normalize error — ${err}`);
+          snapshotErrors.push(`${GEMINI_WEB_CANONICAL_PROVIDER_ID}(script): normalize error — ${err}`);
         }
       } else {
-        snapshotErrors.push(`gemini-canvas(script): ${canvasScriptRes.error ?? "no output"}`);
+        snapshotErrors.push(`${GEMINI_WEB_CANONICAL_PROVIDER_ID}(script): ${canvasScriptRes.error ?? "no output"}`);
       }
     } else if (canvasResult.data) {
       try {
         canvasNormalized = normalizeCanvasHealth(canvasResult.data);
       } catch (err) {
-        snapshotErrors.push(`gemini-canvas: normalize error — ${err}`);
+        snapshotErrors.push(`${GEMINI_WEB_CANONICAL_PROVIDER_ID}: normalize error — ${err}`);
       }
     } else if (canvasResult.error) {
-      snapshotErrors.push(`gemini-canvas: ${canvasResult.error}`);
+      snapshotErrors.push(`${GEMINI_WEB_CANONICAL_PROVIDER_ID}: ${canvasResult.error}`);
     }
     if (canvasNormalized) {
       providers.push(canvasNormalized);
-    } else if (!canvasRuntimeScriptPath) {
+    } else if (!resolvedGeminiRuntimeScriptPath) {
       // Only push unreachable placeholder if we didn't have a script path to try
-      providers.push({ provider: "gemini-canvas", providerType: "browser-session", status: "unreachable" });
+      providers.push({
+        provider: GEMINI_WEB_CANONICAL_PROVIDER_ID,
+        providerCanonical: GEMINI_WEB_CANONICAL_PROVIDER_ID,
+        providerFamily: GEMINI_WEB_CANONICAL_PROVIDER_ID,
+        providerLegacy: GEMINI_WEB_COMPAT_PROVIDER_ID,
+        providerAliases: [...GEMINI_WEB_PROVIDER_ALIASES],
+        providerType: "browser-session",
+        status: "unreachable",
+      });
     }
 
     // sub2api is now included by default and participates in summary counts
@@ -512,7 +564,7 @@ export function buildSummary(providers) {
 
 /**
  * CLI: node src/index.mjs [--json] [--no-sub2api] [--ops-doctor-path=<path>]
- *         [--canvas-runtime-script-path=<path>] [--timeout=3000]
+ *         [--gemini-runtime-script-path=<path>] [--canvas-runtime-script-path=<path>] [--timeout=3000]
  */
 export async function main(argv = process.argv) {
   const args = argv.slice(2);
@@ -520,12 +572,22 @@ export async function main(argv = process.argv) {
   const includeSub2api = !args.includes("--no-sub2api");
   const opsDoctorArg = args.find((a) => a.startsWith("--ops-doctor-path="));
   const opsDoctorPath = opsDoctorArg ? opsDoctorArg.split("=")[1] : "";
+  const geminiScriptArg = args.find((a) => a.startsWith("--gemini-runtime-script-path="));
   const canvasScriptArg = args.find((a) => a.startsWith("--canvas-runtime-script-path="));
-  const canvasRuntimeScriptPath = canvasScriptArg ? canvasScriptArg.split("=")[1] : "";
+  const geminiRuntimeScriptPath = geminiScriptArg
+    ? geminiScriptArg.split("=")[1]
+    : canvasScriptArg
+    ? canvasScriptArg.split("=")[1]
+    : "";
   const timeoutArg = args.find((a) => a.startsWith("--timeout="));
   const timeoutMs = timeoutArg ? parseInt(timeoutArg.split("=")[1], 10) : 3000;
 
-  const bench = createControlBench({ includeSub2api, timeoutMs, opsDoctorPath, canvasRuntimeScriptPath });
+  const bench = createControlBench({
+    includeSub2api,
+    timeoutMs,
+    opsDoctorPath,
+    geminiRuntimeScriptPath,
+  });
   const report = await bench.buildReport();
 
   if (asJson) {
