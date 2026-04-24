@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from prompt_factory.inline_template import extract_template_fields, has_inline_argument_placeholders
 from prompt_factory.models import PromptPolicy, PromptRecord
 
 DEFAULT_PLATFORM_MAP = {
@@ -185,6 +186,13 @@ def build_prompt_record(
     requires_reference = prompt_text_requires_reference(clean_prompt)
     ornate_score = prompt_ornate_score(clean_prompt)
     selection_score = ornate_score - (1000 if human_related else 0) - (1000 if requires_reference else 0)
+    clean_metadata = dict(metadata or {})
+    if has_inline_argument_placeholders(clean_prompt) and "template" not in clean_metadata:
+        clean_metadata["template"] = {
+            "kind": "inline_argument_placeholders",
+            "template_text": clean_prompt,
+            "fields": extract_template_fields(clean_prompt),
+        }
     return PromptRecord(
         id=sha1_text(f"{source}|{source_id}|{clean_prompt}"),
         canonical_id=sha1_text(clean_prompt.lower()),
@@ -205,7 +213,7 @@ def build_prompt_record(
             "requires_reference": requires_reference,
             "score": selection_score,
         },
-        metadata=metadata or {},
+        metadata=clean_metadata,
     )
 
 

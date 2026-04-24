@@ -13,6 +13,21 @@ import {
   toBase64,
 } from "../services/http_utils.mjs";
 
+function parseOptionalIntegerField(body, fieldName, { min = 0 } = {}) {
+  if (!Object.hasOwn(body, fieldName) || body[fieldName] === undefined || body[fieldName] === null || body[fieldName] === "") {
+    return { present: false, value: null, error: null };
+  }
+  const value = Number(body[fieldName]);
+  if (!Number.isInteger(value) || value < min) {
+    return {
+      present: true,
+      value: null,
+      error: jsonError(`${fieldName} must be an integer${min > 0 ? ` >= ${min}` : " >= 0"}`, 400, "invalid_request_error"),
+    };
+  }
+  return { present: true, value, error: null };
+}
+
 export function createOpenAIRouteHandler({
   providerRouter,
   providerAdminService,
@@ -30,6 +45,178 @@ export function createOpenAIRouteHandler({
   chatTimeoutMs,
   imageTimeoutMs,
 }) {
+  function resolveImageGenerationRequest(body = {}) {
+    const prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
+    const n = Number(body.n || 1);
+    const size = body.size || supportedImageSize;
+    const responseFormat = body.response_format || "url";
+    const selectedProvider = providerRouter.resolveProvider({
+      providerId: typeof body.provider === "string" ? body.provider.trim() : "",
+      modelId: typeof body.model === "string" ? body.model.trim() : "",
+    });
+    const selectedModel =
+      body.model ||
+      (typeof selectedProvider.defaultImageModel === "function"
+        ? selectedProvider.defaultImageModel()
+        : selectedProvider.models()[0]?.id) ||
+      selectedProvider.id;
+    const settleDelayMs = parseOptionalIntegerField(body, "settle_delay_ms", { min: 0 });
+    const maxComposerRetries = parseOptionalIntegerField(body, "max_composer_retries", { min: 0 });
+    const imageResultTimeoutMs = parseOptionalIntegerField(body, "image_result_timeout_ms", { min: 1 });
+
+    return {
+      prompt,
+      n,
+      size,
+      responseFormat,
+      selectedProvider,
+      selectedModel,
+      settleDelayMs,
+      maxComposerRetries,
+      imageResultTimeoutMs,
+      imageRuntimeOptions: {
+        ...(settleDelayMs.present ? { settleDelayMs: settleDelayMs.value } : {}),
+        ...(maxComposerRetries.present ? { maxComposerRetries: maxComposerRetries.value } : {}),
+        ...(imageResultTimeoutMs.present ? { imageResultTimeoutMs: imageResultTimeoutMs.value } : {}),
+      },
+    };
+  }
+
+  function validateImageGenerationRequest(request, res) {
+    for (const parsed of [request.settleDelayMs, request.maxComposerRetries, request.imageResultTimeoutMs]) {
+      if (parsed.error) {
+        const { status, body: errorPayload } = parsed.error;
+        sendJson(res, status, errorPayload);
+        return false;
+      }
+    }
+
+    if (!request.prompt) {
+      const { status, body: errorPayload } = jsonError("prompt is required", 400, "invalid_request_error");
+      sendJson(res, status, errorPayload);
+      return false;
+    }
+    if (!Number.isInteger(request.n) || request.n < 1 || request.n > maxImageCount) {
+      const { status, body: errorPayload } = jsonError(
+        `n must be an integer between 1 and ${maxImageCount}`,
+        400,
+        "invalid_request_error"
+      );
+      sendJson(res, status, errorPayload);
+      return false;
+    }
+    if (request.size !== supportedImageSize) {
+      const { status, body: errorPayload } = jsonError(
+        `only size ${supportedImageSize} is currently supported`,
+        400,
+        "invalid_request_error"
+      );
+      sendJson(res, status, errorPayload);
+      return false;
+    }
+    if (!["url", "b64_json"].includes(request.responseFormat)) {
+      const { status, body: errorPayload } = jsonError(
+        "response_format must be url or b64_json",
+        400,
+        "invalid_request_error"
+      );
+      sendJson(res, status, errorPayload);
+      return false;
+    }
+
+    return true;
+  }
+
+  async function buildImageGenerationPayload(request, results, { jobId = "" } = {}) {
+    const data = [];
+    const media = [];
+    for (const result of results) {
+      const item = { revised_prompt: request.prompt };
+      if (request.responseFormat === "url") {
+        item.url = `${publicBaseUrl}/generated/${path.basename(result.output_path)}`;
+      } else {
+        item.b64_json = toBase64(await fs.readFile(result.output_path));
+      }
+      data.push(item);
+      media.push(
+        await mediaStore.recordGeneratedMedia({
+          provider: request.selectedProvider.id,
+          kind: "image",
+          model: request.selectedModel,
+          prompt: request.prompt,
+          outputPath: result.output_path,
+          sourceUrl: result.image_url,
+          metadata: {
+            conversation_url: result.conversation_url,
+            alt: result.alt,
+          },
+          id: result.artifact_id || "",
+          mimeType: result.mime_type || "",
+          sha256: result.sha256 || "",
+          width: result.width ?? null,
+          height: result.height ?? null,
+        })
+      );
+    }
+
+    return {
+      created: results[0].created,
+      data,
+      ...(jobId ? { job: jobQueue.get(jobId) } : {}),
+      meta: {
+        model: request.selectedModel,
+        size: supportedImageSize,
+        n: request.n,
+        response_format: request.responseFormat,
+        provider: request.selectedProvider.id,
+        provider_admission: results[0].admission || null,
+        provider_admission_detail: results[0].admission_detail || null,
+        media_ids: media.map((item) => item.id),
+        outputs: results.map((result) => ({
+          conversation_url: result.conversation_url,
+          output_path: result.output_path,
+          source_image_url: result.image_url,
+          alt: result.alt,
+        })),
+      },
+    };
+  }
+
+  function enqueueImageGenerationJob(request) {
+    return enqueueProviderJob(
+      "images.generations",
+      async () => {
+        const items = [];
+        for (let i = 0; i < request.n; i += 1) {
+          items.push(
+            await withTimeout(
+              () =>
+                request.selectedProvider.generateImage(request.prompt, {
+                  model: request.selectedModel,
+                  size: request.size,
+                  responseFormat: request.responseFormat,
+                  ...request.imageRuntimeOptions,
+                }),
+              imageTimeoutMs,
+              `Image generation ${i + 1}/${request.n}`
+            )
+          );
+        }
+        return buildImageGenerationPayload(request, items);
+      },
+      {
+        provider: request.selectedProvider.id,
+        model: request.selectedModel,
+        prompt: request.prompt,
+        n: request.n,
+        response_format: request.responseFormat,
+        ...(request.settleDelayMs.present ? { settle_delay_ms: request.settleDelayMs.value } : {}),
+        ...(request.maxComposerRetries.present ? { max_composer_retries: request.maxComposerRetries.value } : {}),
+        ...(request.imageResultTimeoutMs.present ? { image_result_timeout_ms: request.imageResultTimeoutMs.value } : {}),
+      }
+    );
+  }
+
   return async function handleOpenAIRoute(req, res, url) {
     const { pathname } = url;
 
@@ -352,126 +539,33 @@ export function createOpenAIRouteHandler({
 
     if (req.method === "POST" && pathname === "/v1/images/generations") {
       try {
-        const body = await readJsonBody(req);
-        const prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
-        const n = Number(body.n || 1);
-        const size = body.size || supportedImageSize;
-        const responseFormat = body.response_format || "url";
-        const selectedProvider = providerRouter.resolveProvider({
-          providerId: typeof body.provider === "string" ? body.provider.trim() : "",
-          modelId: typeof body.model === "string" ? body.model.trim() : "",
-        });
-        const selectedModel =
-          body.model ||
-          (typeof selectedProvider.defaultImageModel === "function"
-            ? selectedProvider.defaultImageModel()
-            : selectedProvider.models()[0]?.id) ||
-          selectedProvider.id;
-
-        if (!prompt) {
-          const { status, body: errorPayload } = jsonError("prompt is required", 400, "invalid_request_error");
-          sendJson(res, status, errorPayload);
-          return true;
-        }
-        if (!Number.isInteger(n) || n < 1 || n > maxImageCount) {
-          const { status, body: errorPayload } = jsonError(
-            `n must be an integer between 1 and ${maxImageCount}`,
-            400,
-            "invalid_request_error"
-          );
-          sendJson(res, status, errorPayload);
-          return true;
-        }
-        if (size !== supportedImageSize) {
-          const { status, body: errorPayload } = jsonError(
-            `only size ${supportedImageSize} is currently supported`,
-            400,
-            "invalid_request_error"
-          );
-          sendJson(res, status, errorPayload);
-          return true;
-        }
-        if (!["url", "b64_json"].includes(responseFormat)) {
-          const { status, body: errorPayload } = jsonError(
-            "response_format must be url or b64_json",
-            400,
-            "invalid_request_error"
-          );
-          sendJson(res, status, errorPayload);
+        const request = resolveImageGenerationRequest(await readJsonBody(req));
+        if (!validateImageGenerationRequest(request, res)) {
           return true;
         }
 
-        const queued = enqueueProviderJob(
-          "images.generations",
-          async () => {
-            const items = [];
-            for (let i = 0; i < n; i += 1) {
-              items.push(
-                await withTimeout(
-                  () => selectedProvider.generateImage(prompt, { model: selectedModel, size, responseFormat }),
-                  imageTimeoutMs,
-                  `Image generation ${i + 1}/${n}`
-                )
-              );
-            }
-            return items;
-          },
-          { provider: selectedProvider.id, model: selectedModel, prompt, n, response_format: responseFormat }
-        );
-        const results = await queued.wait();
-
-        const data = [];
-        const media = [];
-        for (const result of results) {
-          const item = { revised_prompt: prompt };
-          if (responseFormat === "url") {
-            item.url = `${publicBaseUrl}/generated/${path.basename(result.output_path)}`;
-          } else {
-            item.b64_json = toBase64(await fs.readFile(result.output_path));
-          }
-          data.push(item);
-          media.push(
-            await mediaStore.recordGeneratedMedia({
-              provider: selectedProvider.id,
-              kind: "image",
-              model: selectedModel,
-              prompt,
-              outputPath: result.output_path,
-              sourceUrl: result.image_url,
-              metadata: {
-                conversation_url: result.conversation_url,
-                alt: result.alt,
-              },
-              id: result.artifact_id || "",
-              mimeType: result.mime_type || "",
-              sha256: result.sha256 || "",
-              width: result.width ?? null,
-              height: result.height ?? null,
-            })
-          );
-        }
-
+        const queued = enqueueImageGenerationJob(request);
+        const payload = await queued.wait();
         sendJson(res, 200, {
-          created: results[0].created,
-          data,
+          ...payload,
           job: jobQueue.get(queued.job.id),
-          meta: {
-            model: selectedModel,
-            size: supportedImageSize,
-            n,
-            response_format: responseFormat,
-            provider: selectedProvider.id,
-            provider_admission: results[0].admission || null,
-            provider_admission_detail: results[0].admission_detail || null,
-            media_ids: media.map((item) => item.id),
-            outputs: results.map((result) => ({
-              conversation_url: result.conversation_url,
-              output_path: result.output_path,
-              source_image_url: result.image_url,
-              alt: result.alt,
-            })),
-          },
         });
+      } catch (error) {
+        const { status, body } = errorBody(error);
+        sendJson(res, status, body);
+      }
+      return true;
+    }
+
+    if (req.method === "POST" && pathname === "/v1/images/jobs") {
+      try {
+        const request = resolveImageGenerationRequest(await readJsonBody(req));
+        if (!validateImageGenerationRequest(request, res)) {
+          return true;
+        }
+
+        const queued = enqueueImageGenerationJob(request);
+        sendJson(res, 202, queued.job);
       } catch (error) {
         const { status, body } = errorBody(error);
         sendJson(res, status, body);

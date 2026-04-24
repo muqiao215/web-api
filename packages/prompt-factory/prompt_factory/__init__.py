@@ -5,5 +5,6 @@ __all__ = [
     "cli",
     "exporters",
     "filters",
+    "inline_template",
     "models",
 ]

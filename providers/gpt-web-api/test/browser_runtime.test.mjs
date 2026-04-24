@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { __testHooks } from "../services/browser_runtime.mjs";
 
-const { submitImagePrompt } = __testHooks;
+const { submitImagePrompt, resolveImageRuntimeOptions } = __testHooks;
 
 class FakeImagePage {
   constructor({
@@ -207,4 +207,32 @@ test("submitImagePrompt throws explicit inert composer error when all image-only
   assert.equal(page.clearCalls, 1);
   assert.deepEqual(page.typeTextCalls, ["unwakeable prompt"]);
   assert.equal(page.clicks, 0);
+});
+
+test("resolveImageRuntimeOptions normalizes northbound image debug knobs", () => {
+  assert.deepEqual(
+    resolveImageRuntimeOptions({
+      settleDelayMs: 1200,
+      maxComposerRetries: 3,
+      imageResultTimeoutMs: 90000,
+    }),
+    {
+      settleDelayMs: 1200,
+      maxComposerRetries: 3,
+      imageResultTimeoutMs: 90000,
+    },
+  );
+
+  assert.deepEqual(
+    resolveImageRuntimeOptions({
+      settle_delay_ms: 450,
+      max_composer_retries: 2,
+      image_result_timeout_ms: 60000,
+    }),
+    {
+      settleDelayMs: 450,
+      maxComposerRetries: 2,
+      imageResultTimeoutMs: 60000,
+    },
+  );
 });

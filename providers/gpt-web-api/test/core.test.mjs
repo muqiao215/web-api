@@ -182,10 +182,14 @@ test("normalizeApiError classifies common provider failures", () => {
 });
 
 test("ChatGPTWebProvider exposes provider-style metadata and delegates operations", async () => {
+  const imageCalls = [];
   const provider = new ChatGPTWebProvider({
     chatCompletion: async () => ({ content: "OK" }),
     chatCompletionStream: async () => ({ content: "OK" }),
-    generateImage: async (prompt) => ({ prompt, output_path: "/tmp/out.png" }),
+    generateImage: async (prompt, options = {}) => {
+      imageCalls.push({ prompt, options });
+      return { prompt, output_path: "/tmp/out.png", options };
+    },
   });
 
   assert.equal(provider.id, "chatgpt-web");
@@ -194,7 +198,20 @@ test("ChatGPTWebProvider exposes provider-style metadata and delegates operation
     ["chatgpt-web", "chatgpt-images"],
   );
   assert.equal(provider.capabilities.images, true);
-  assert.deepEqual(await provider.generateImage("draw"), { prompt: "draw", output_path: "/tmp/out.png" });
+  assert.deepEqual(
+    await provider.generateImage("draw", { settleDelayMs: 1200, maxComposerRetries: 2 }),
+    {
+      prompt: "draw",
+      output_path: "/tmp/out.png",
+      options: { settleDelayMs: 1200, maxComposerRetries: 2 },
+    },
+  );
+  assert.deepEqual(imageCalls, [
+    {
+      prompt: "draw",
+      options: { settleDelayMs: 1200, maxComposerRetries: 2 },
+    },
+  ]);
 });
 
 test("GeminiWebProvider exposes canonical metadata and maps runtime HTTP responses", async () => {

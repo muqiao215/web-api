@@ -111,6 +111,29 @@ function shouldCleanupImageComposerError(error) {
   return /send button still disabled|Image composer stale-state|Image composer inert|Timed out waiting for image result/i.test(message);
 }
 
+function toSafeInteger(value, { min = 0 } = {}) {
+  if (value === undefined || value === null || value === "") return null;
+  const number = Number(value);
+  if (!Number.isFinite(number) || !Number.isInteger(number) || number < min) {
+    return null;
+  }
+  return number;
+}
+
+function resolveImageRuntimeOptions(options = {}) {
+  const settleDelayMs =
+    toSafeInteger(options.settleDelayMs ?? options.settle_delay_ms, { min: 0 }) ?? 800;
+  const maxComposerRetries =
+    toSafeInteger(options.maxComposerRetries ?? options.max_composer_retries, { min: 0 }) ?? 1;
+  const imageResultTimeoutMs =
+    toSafeInteger(options.imageResultTimeoutMs ?? options.image_result_timeout_ms, { min: 1 }) ?? 120000;
+  return {
+    settleDelayMs,
+    maxComposerRetries,
+    imageResultTimeoutMs,
+  };
+}
+
 async function readImageComposerState(page) {
   return page.evaluate(`(() => { /* image-composer-read */
     const editor = document.querySelector('div[contenteditable="true"][role="textbox"]');
@@ -994,14 +1017,15 @@ export function createBrowserRuntime({
     }
   }
 
-  async function generateImage(prompt) {
+  async function generateImage(prompt, options = {}) {
+    const { settleDelayMs, maxComposerRetries, imageResultTimeoutMs } = resolveImageRuntimeOptions(options);
     await fs.mkdir(outputDir, { recursive: true });
     return withImagePage(async (page) => {
       await ensureImagePage(page);
       try {
         const existingSources = await snapshotGeneratedImageSources(page);
-        await submitImagePrompt(page, prompt);
-        const state = await waitForImageResult(page, existingSources);
+        await submitImagePrompt(page, prompt, { settleDelayMs, maxComposerRetries });
+        const state = await waitForImageResult(page, existingSources, imageResultTimeoutMs);
         const bytes = await fetchImageBytesInPage(page, state.image.src);
         const created = Math.floor(Date.now() / 1000);
         const filename = `chatgpt-image-${created}.png`;
@@ -1228,6 +1252,7 @@ export function createBrowserRuntime({
 
 export const __testHooks = {
   classifyImageComposerFailure,
+  resolveImageRuntimeOptions,
   shouldCleanupImageComposerError,
   submitImagePrompt,
 };
