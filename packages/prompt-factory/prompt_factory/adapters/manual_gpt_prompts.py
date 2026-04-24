@@ -35,6 +35,7 @@ def load_manual_gpt_prompts(path: Path) -> list[PromptRecord]:
                     "source_file": str(path),
                     "notes": str(item.get("notes") or ""),
                     "original_author": str(item.get("original_author") or ""),
+                    "meta_prompt": str(item.get("meta_prompt") or ""),
                 },
             )
         )

@@ -133,6 +133,17 @@ cron 友好的状态文件会写到 `state/`：
 - 适合存放从聊天、社媒、测试记录中拣出来的高质量 prompt
 - 会去掉账号名、序号、JSON 壳、图片尺寸尾巴这类噪音
 - 人物/人像 prompt 也会正常入库；是否在生成链路里筛掉，交给后续消费侧处理
+- 可选 `meta_prompt` 字段可用来保存“元提示词抽象 / 配方层”，例如主题、镜头、光线、排版结构这类可复用骨架；当前会透传到 unified pool 的 `metadata` 和 GPT 导出的 `meta`，便于后续 bot 或上层工作流消费
+
+可以直接对单条 manual GPT prompt 生成骨架并写回源文件：
+
+```bash
+uv run --project packages/prompt-factory \
+  prompt-factory meta-prompt \
+  --source-id manual-dali-yunnan-vintage-travel-poster
+```
+
+如果该条目已经有 `meta_prompt`，默认不会覆盖；加 `--force` 才会重写。
 
 ## 设计取舍
 

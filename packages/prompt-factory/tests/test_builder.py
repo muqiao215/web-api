@@ -165,6 +165,7 @@ class PromptFactoryBuildTests(unittest.TestCase):
                         "source_id": "manual-tech",
                         "title": "Manual tech prompt",
                         "prompt": "Ultra-realistic cinematic smart city antenna tower, neon signal waves, holographic HUD labels, dramatic blue lighting, detailed infrastructure poster composition.",
+                        "meta_prompt": "Subject x environment x signal-system taxonomy x lighting x HUD annotation x composition.",
                         "category_tags": ["manual-curated", "technology"],
                     },
                     {
@@ -218,6 +219,11 @@ class PromptFactoryBuildTests(unittest.TestCase):
         self.assertTrue(any(item["source"] == "hoppycat-prompt-pack" for item in pool["prompts"]))
         self.assertTrue(any(item["source"] == "awesome-gpt-image-2-prompts" for item in pool["prompts"]))
         self.assertTrue(any(item["source"] == "manual-gpt-prompts" for item in pool["prompts"]))
+        manual_tech = next(item for item in pool["prompts"] if item["source_id"] == "manual-tech")
+        self.assertEqual(
+            manual_tech["metadata"]["meta_prompt"],
+            "Subject x environment x signal-system taxonomy x lighting x HUD annotation x composition.",
+        )
 
     def test_provider_exports_are_runtime_compatible(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -241,6 +247,11 @@ class PromptFactoryBuildTests(unittest.TestCase):
         self.assertFalse(any(item["source"] == "youmind-ai-image-prompts-skill" for item in gpt["prompts"]))
         self.assertFalse(any(item["source"] == "atomic-composer" for item in gpt["prompts"]))
         self.assertEqual(gpt["source_counts"], {"awesome-gpt-image-2-prompts": 1, "manual-gpt-prompts": 2})
+        manual_tech = next(item for item in gpt["prompts"] if item["source_id"] == "manual-tech")
+        self.assertEqual(
+            manual_tech["meta"]["meta_prompt"],
+            "Subject x environment x signal-system taxonomy x lighting x HUD annotation x composition.",
+        )
         self.assertEqual(banana["version"], 2)
         self.assertEqual(banana["source"], "prompt_factory")
         self.assertLessEqual(banana["prompt_count"], 3)

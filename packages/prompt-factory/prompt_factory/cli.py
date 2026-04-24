@@ -13,6 +13,7 @@ from prompt_factory.exporters import (
     export_unified_pool,
     export_used_index_seed,
 )
+from prompt_factory.meta_prompt import update_manual_meta_prompt
 from prompt_factory.models import PromptPolicy
 from prompt_factory.operations import (
     collect_source_snapshots,
@@ -164,6 +165,16 @@ def promote_command(args: argparse.Namespace) -> int:
     return 0
 
 
+def meta_prompt_command(args: argparse.Namespace) -> int:
+    result = update_manual_meta_prompt(
+        Path(args.manual_path),
+        source_id=args.source_id,
+        force=args.force,
+    )
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+    return 0
+
+
 def add_common_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--workspace-root", default=str(WORKSPACE))
     parser.add_argument("--source-registry", default=str(DEFAULT_SOURCE_REGISTRY))
@@ -206,6 +217,16 @@ def build_parser() -> argparse.ArgumentParser:
     promote.add_argument("--promoted-root", default=str(DEFAULT_PROMOTED_ROOT))
     promote.add_argument("--manifest", default="")
     promote.set_defaults(func=promote_command)
+
+    meta_prompt = subparsers.add_parser("meta-prompt", help="Generate a meta_prompt skeleton for one manual GPT prompt")
+    meta_prompt.add_argument("--workspace-root", default=str(WORKSPACE))
+    meta_prompt.add_argument(
+        "--manual-path",
+        default=str(PROJECT_ROOT / "sources" / "manual_gpt_prompts.json"),
+    )
+    meta_prompt.add_argument("--source-id", required=True)
+    meta_prompt.add_argument("--force", action="store_true")
+    meta_prompt.set_defaults(func=meta_prompt_command)
     return parser
 
 
