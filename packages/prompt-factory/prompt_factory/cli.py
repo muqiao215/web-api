@@ -195,10 +195,21 @@ def build_parser() -> argparse.ArgumentParser:
     build.add_argument("--profile", choices=["local_repos", "runtime_bridge", "all"], default="all")
     build.add_argument("--output-root", default=str(PROJECT_ROOT / "builds"))
     build.add_argument("--compose-keyword-limit", type=int, default=55)
-    build.add_argument("--banana-min-chars", type=int, default=180)
+    build.add_argument("--banana-min-chars", type=int, default=0)
     build.add_argument("--banana-max-prompts", type=int, default=5000)
-    build.add_argument("--allow-humans", action="store_true")
-    build.add_argument("--allow-reference-required", action="store_true")
+    build.add_argument("--allow-humans", dest="allow_humans", action="store_true", default=True)
+    build.add_argument("--disallow-humans", dest="allow_humans", action="store_false")
+    build.add_argument(
+        "--allow-reference-required",
+        dest="allow_reference_required",
+        action="store_true",
+        default=True,
+    )
+    build.add_argument(
+        "--disallow-reference-required",
+        dest="allow_reference_required",
+        action="store_false",
+    )
     build.set_defaults(func=build_command)
 
     diff = subparsers.add_parser("diff", help="Compare a build manifest against stable or previous build")

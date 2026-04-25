@@ -254,7 +254,8 @@ class PromptFactoryBuildTests(unittest.TestCase):
         )
         self.assertEqual(banana["version"], 2)
         self.assertEqual(banana["source"], "prompt_factory")
-        self.assertLessEqual(banana["prompt_count"], 3)
+        self.assertEqual(banana["prompt_count"], 3)
+        self.assertFalse(any(item["id"] == manual_tech["id"] for item in banana["prompts"]))
         self.assertTrue(all({"id", "source_id", "number", "title", "prompt"} <= set(item) for item in banana["prompts"]))
 
 

@@ -6,8 +6,8 @@ from typing import Any
 
 @dataclass(slots=True)
 class PromptPolicy:
-    allow_humans: bool = False
-    allow_reference_required: bool = False
+    allow_humans: bool = True
+    allow_reference_required: bool = True
     min_prompt_chars: int = 0
     blocked_terms: list[str] = field(default_factory=list)
 

@@ -5,7 +5,15 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-GPT_PROVIDER_MODEL_TAGS = {"gpt-image", "gpt-image-2", "chatgpt-images"}
+GPT_PROVIDER_MODEL_TAGS = {
+    "chatgpt-images",
+    "gpt-image",
+    "gpt-image-1",
+    "gpt-image-1.5",
+    "gpt-image-2",
+    "gpt_image",
+    "openai-images",
+}
 
 
 def _now_epoch() -> float:
@@ -22,8 +30,15 @@ def _write_json(path: Path, data: Any) -> None:
 
 
 def _is_gpt_provider_prompt(item: dict[str, Any]) -> bool:
-    model_tags = {str(tag).strip() for tag in (item.get("model_tags") or []) if str(tag).strip()}
+    model_tags = {str(tag).strip().lower() for tag in (item.get("model_tags") or []) if str(tag).strip()}
     return bool(model_tags & GPT_PROVIDER_MODEL_TAGS)
+
+
+def _is_banana_provider_prompt(item: dict[str, Any]) -> bool:
+    model_tags = {str(tag).strip().lower() for tag in (item.get("model_tags") or []) if str(tag).strip()}
+    if not model_tags:
+        return True
+    return not model_tags.issubset(GPT_PROVIDER_MODEL_TAGS)
 
 
 def export_gpt_prompt_pool(pool: dict[str, Any], path: Path) -> None:
@@ -70,11 +85,10 @@ def export_gpt_prompt_pool(pool: dict[str, Any], path: Path) -> None:
     )
 
 
-def export_banana_prompts(pool: dict[str, Any], path: Path, *, max_prompts: int = 5000, min_chars: int = 180) -> None:
+def export_banana_prompts(pool: dict[str, Any], path: Path, *, max_prompts: int = 5000, min_chars: int = 0) -> None:
     prompts = []
     for item in pool["prompts"]:
-        quality = item.get("quality") or {}
-        if quality.get("human_related") or quality.get("requires_reference"):
+        if not _is_banana_provider_prompt(item):
             continue
         if len(str(item.get("prompt") or "")) < min_chars:
             continue
