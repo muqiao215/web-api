@@ -1,39 +1,100 @@
 # Web Capability API
 
-Web Capability API is a self-hosted toolkit for turning logged-in web apps, browser sessions, and local model workers into manageable HTTP APIs.
+Web Capability API is a self-hosted control-layer monorepo for turning logged-in web apps, browser sessions, and local model workers into manageable HTTP APIs.
 
-It is aimed at builders who already have a working browser or provider runtime and want to expose it behind a more stable API surface instead of driving everything from ad hoc bots or manual browser clicks.
+It is designed for builders who already have real capability backends, such as browser profiles, share-link workers, or lightweight account-pool runtimes, and want to expose them behind a clearer northbound surface.
 
-This repository is best described as a **unified control-layer monorepo**:
+This repo is not a claim that every provider has already been fully absorbed into one native codebase. It is a practical unification layer with mixed ownership models.
 
-- a remote API management plane can sit northbound; this repo does not assume a local `sub2api` service
-- browser sessions and local workers are the actual capability backends
-- some upstream runtimes are partly absorbed into the tree, but not all are owned in the same way
+## What This Repo Is Good At
 
-This is therefore not a full source mirror of every provider it can manage, and not a flat collection of equivalent wrappers either.
+- wrapping browser-backed capability as provider APIs
+- adding protocol shims where an upstream surface is incomplete
+- keeping provider contracts, queue state, artifacts, and health signals in one place
+- giving downstream bots, apps, and automation jobs a more stable surface than direct browser scripting
+- supporting a narrow center/worker execution model for selected remote jobs
 
-## What It Does
+## Stable
 
-- Wrap browser-backed capabilities as local provider APIs.
-- Add protocol shims where an upstream only exposes chat-completions style endpoints.
-- Keep provider contracts, queue state, artifact records, and health checks in one place.
-- Let downstream consumers such as bots, automation jobs, and showcase apps talk to a unified surface instead of each provider directly.
-- Expose a center-owned async job surface and let private worker nodes execute selected capabilities remotely.
+These are the clearest public-facing paths in the repository today.
 
-## Current Scope
+### Repo-native control and contract layer
 
-Implemented or staged in this repository:
+- `packages/provider_contracts`
+- `packages/job_queue`
+- `packages/provider_pool`
+- `packages/proxy_pool`
+- `packages/audit_log`
+- `packages/provider_artifacts`
+- `packages/ops_doctor`
 
-- ChatGPT web provider
-- Generic chat-to-responses shim
-- GPT responses shim
-- Prompt factory and prompt export pipeline
-- DeepSeek provider boundary around an external worker plus generic Responses shim
-- Qwen provider boundary around a lightweight account-pool runtime
-- Gemini Web-first provider surface under `providers/gemini-web/`, with `providers/canvas-to-api/` preserved as the legacy compatibility wrapper around the current browser/runtime transport
-- Private worker pilot runtime for the two-node center/worker path
+This is the reusable substrate of the repo: schemas, queue semantics, artifact records, runtime health vocabulary, and operator-facing diagnostics.
 
-This repository is intentionally systemd-first and browser-aware. It does not try to hide that some providers depend on a real logged-in browser session.
+### GPT web provider line
+
+- `providers/gpt-web-api`
+- `shims/gpt-web-responses`
+- `shims/chat-responses`
+
+This is the strongest repo-native provider path right now. It already owns provider routing, session affinity, queue behavior, browser runtime checks, admin surfaces, async jobs, and media/index handling inside the repo.
+
+### Control and worker surfaces
+
+- `apps/control-workbench`
+- `apps/private-worker`
+
+These provide the read-only control aggregation layer and the first narrow distributed execution slice.
+
+## Experimental
+
+These paths are real and useful, but they should still be read as evolving integrations rather than flat, fully mature product surfaces.
+
+### Gemini Web family
+
+- canonical provider family: `providers/gemini-web`
+- current bridge compatibility path: `providers/canvas-to-api`
+
+Current practical status:
+
+- Gemini Web chat is admitted through the unified northbound surface
+- Gemini image flows exist, but should still be treated as experimental / degraded-first
+- the current live transport still preserves canvas-share era assumptions
+
+Conceptually this repo now treats the family as **Gemini Web**, not "Canvas provider", but the compatibility path remains because the runtime transport has not been fully re-homed yet.
+
+### Lightweight text boundaries
+
+- `providers/qwen2api`
+- `providers/ds-free-api`
+
+These are useful integration boundaries, but they are not equivalent to the GPT web line in repo ownership.
+
+- `qwen2api` is primarily an account-pool text path
+- `ds-free-api` is primarily an external worker plus normalization shim
+
+### Prompt and prompt-export tooling
+
+- `packages/prompt-factory`
+
+This area is already useful, but it also depends on external prompt sources and bridge logic. It is best treated as a practical pipeline, not as a sealed standalone product.
+
+## Legacy
+
+These paths still matter operationally, but they should be read as compatibility or transition layers rather than the long-term public model.
+
+### Gemini compatibility aliases
+
+- `providers/canvas-to-api`
+- legacy provider id: `gemini-canvas`
+
+These remain in the tree because today's live runtime and service wiring still depend on them. They are preserved so existing deployments and runtime assumptions do not break abruptly.
+
+### Transitional worker and runtime shapes
+
+- legacy internal worker routes still exist in `apps/private-worker`
+- some runtime payloads still expose legacy ids or compatibility fields during migration
+
+This repo keeps those edges visible on purpose. The goal is controlled migration, not fake cleanliness.
 
 ## Quick Start
 
@@ -50,7 +111,7 @@ Run the health doctor:
 uv run --project packages/ops_doctor wcapi-doctor
 ```
 
-Run a provider or shim from the repo root:
+Run key services from the repo root:
 
 ```bash
 cd providers/gpt-web-api
@@ -80,56 +141,17 @@ vendor/               upstreams kept outside provider ownership
 ops/                  deployment/runtime examples and environment templates
 ```
 
-## Layering
+## Reading Guide
 
-The architecture has four visible layers:
+- Start with [ARCHITECTURE.md](ARCHITECTURE.md) for the four-layer control-plane model.
+- Start with [UPSTREAMS.md](UPSTREAMS.md) for the current upstream and ownership map.
+- Start with [providers/README.md](providers/README.md) for provider-specific surfaces.
+- See [shims/README.md](shims/README.md) for protocol adapters.
+- See [ops/README.md](ops/README.md) for runtime templates and environment examples.
 
-1. Generic / shared contracts layer
-   `packages/` and reusable schemas, queues, pools, artifacts, and health tooling.
-2. Integration / provider layer
-   `providers/`, `shims/`, and `apps/private-worker`.
-3. Vendored / upstream boundary layer
-   `vendor/` and `providers/<provider>/upstream`.
-4. Runtime / control layer
-   provider-local runtime status, browser profiles, queue/lock policy, and service ownership.
-
-For Gemini specifically, the conceptual provider family is now **Gemini Web**. The canonical repo/provider surface is `providers/gemini-web/`. The path `providers/canvas-to-api/` remains in place only as a compatibility wrapper because today's live transport still preserves canvas-share era service/runtime assumptions. That path should not be read as the canonical provider id or long-term provider model.
-
-See [ARCHITECTURE.md](ARCHITECTURE.md) for the full four-layer model and [UPSTREAMS.md](UPSTREAMS.md) for the current boundary map.
-
-## Runtime Tiers
-
-Not every provider should be treated as the same default path.
-
-- Tier 0: lightweight text
-  Prefer this for ordinary text chat where possible.
-- Tier 1: browser-backed capability
-  Use this for image generation, file flows, and browser-native features.
-- Tier 2: login/session maintenance
-  Browser profile repair, CDP attachment, and identity lifecycle.
-- Tier 3: long-running and artifact-heavy jobs
-  Research, async jobs, remote worker execution, and similar flows.
-
-This matters because browser-backed providers are powerful but more memory-expensive. They should not silently become the default path for every cheap text request.
-
-## Tooling
-
-- Python packages use `uv`.
-- JavaScript and TypeScript packages use `bun`.
-- Runtime verification starts with `packages/ops_doctor`.
-
-## Honest Boundaries
+## Honest Boundary
 
 - Some providers only work when a real browser session is already authenticated.
-- Some integrations in this repo are repo-native runtimes, while others are runtime-status bridges or external worker boundaries.
-- Gemini Web chat is already admitted through the unified northbound `/v1/chat/completions` surface; Gemini image admission exists but remains experimental / degraded-first.
-- Gemini Web's canonical public/provider id is `gemini-web`; `gemini-canvas` remains only a legacy compatibility alias.
-- a remote API management plane may exist northbound, but this repo no longer assumes a local `sub2api-local.service`
-- The first distributed execution slice is intentionally narrow: center northbound `/v1/jobs`, static worker registry, private worker execution, and local fallback.
-
-## Where To Go Next
-
-- Start with [ARCHITECTURE.md](ARCHITECTURE.md) for the control-plane model.
-- Start with [providers](providers/README.md) for provider surfaces.
-- See [shims](shims/README.md) for protocol adapters.
-- See [ops](ops/README.md) for deployment templates and non-secret environment examples.
+- Some integrations are repo-native runtimes, while others remain runtime-status bridges or external worker boundaries.
+- A remote management plane can sit northbound, but this repo does not require a local `sub2api` service to make sense.
+- The repo is strongest today as a unified control layer, not as a claim that every referenced provider has already been fully re-implemented here.
