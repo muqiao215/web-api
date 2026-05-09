@@ -8,6 +8,7 @@ from prompt_factory.operations import (
     diff_manifest_pair,
     find_previous_manifest,
     promote_manifest,
+    validate_promotion_manifest,
     sync_sources,
     write_build_tracking,
 )
@@ -141,6 +142,11 @@ class PromptFactoryOperationsTests(unittest.TestCase):
                     "profile": "local_repos",
                     "prompt_count": 4,
                     "pool_fingerprint": "abc",
+                    "errors": [],
+                    "input_sources": ["manual_gpt"],
+                    "source_snapshots": {
+                        "manual_gpt": {"status": "ok", "revision": "manual-rev", "sync_mode": "file_snapshot"}
+                    },
                     "paths": {key: str(path) for key, path in paths.items()},
                 },
             )
@@ -156,6 +162,44 @@ class PromptFactoryOperationsTests(unittest.TestCase):
             self.assertTrue((promoted_root / "local_repos" / "manifest.json").exists())
             self.assertTrue((promoted_root / "local_repos" / "providers" / "banana" / "banana_prompts.json").exists())
             self.assertTrue((state_dir / "last_promote_status.json").exists())
+
+    def test_promotion_gate_rejects_bad_manifest_and_runtime_bridge_defaults(self) -> None:
+        manifest = {
+            "profile": "local_repos",
+            "prompt_count": 0,
+            "errors": ["adapter failed"],
+            "input_sources": ["runtime_bridge"],
+            "source_snapshots": {
+                "repo": {"status": "ok", "sync_mode": "git_repo", "dirty": True, "behind": 1},
+                "missing": {"status": "missing", "sync_mode": "file_snapshot"},
+            },
+            "paths": {},
+        }
+
+        result = validate_promotion_manifest("local_repos", manifest)
+
+        self.assertFalse(result["ok"])
+        self.assertIn("manifest has errors", result["errors"])
+        self.assertIn("prompt_count must be > 0", result["errors"])
+        self.assertIn("local_repos manifest must not include runtime_bridge", result["errors"])
+        self.assertTrue(any("source repo is dirty" in error for error in result["errors"]))
+        self.assertTrue(any("source repo is behind" in error for error in result["errors"]))
+        self.assertTrue(any("source snapshot is not ok" in error for error in result["errors"]))
+
+        runtime_result = validate_promotion_manifest(
+            "runtime_bridge",
+            {
+                "profile": "runtime_bridge",
+                "prompt_count": 1,
+                "errors": [],
+                "input_sources": ["runtime_bridge"],
+                "source_snapshots": {"runtime_bridge": {"status": "ok", "sync_mode": "file_snapshot", "revision": "r"}},
+                "paths": {},
+            },
+        )
+        self.assertFalse(runtime_result["ok"])
+        self.assertIn("runtime_bridge promotion requires force", runtime_result["errors"])
+        self.assertTrue(validate_promotion_manifest("runtime_bridge", runtime_result["manifest"], force=True)["ok"])
 
     def test_build_tracking_archives_previous_manifest_and_pool(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

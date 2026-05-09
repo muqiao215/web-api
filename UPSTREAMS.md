@@ -79,7 +79,7 @@ These repos influence architecture thinking without necessarily being upstream r
 | Reference | Why it matters | Adoption stance |
 | --- | --- | --- |
 | `https://github.com/xtekky/gpt4free` | Good reference for provider registry, model/provider indirection, fallback, and request/provider decoupling | Architectural reference only; do not flatten browser runtimes into a generic adapter zoo |
-| `https://github.com/Wei-Shaw/sub2api` | Defines the intended management-plane boundary | Integrated as external management-plane boundary |
+| `https://github.com/Wei-Shaw/sub2api` | Defines the intended management-plane boundary | Architectural boundary and optional remote control plane; do not assume a local `sub2api-local.service` |
 
 ## Why Keep The Boundary Visible
 
@@ -108,6 +108,11 @@ That means the clean product statement is:
 Not:
 
 > `web-api` already fully re-implements every provider it references.
+
+Historical note:
+
+- local `sub2api` deploys may still exist on some hosts as legacy runtime residue
+- the current architecture should treat the management plane as remote/optional rather than a required local service
 
 ## Current Absorption Notes
 

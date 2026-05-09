@@ -1,3 +1,6 @@
+# Deprecated local example:
+# keep only for hosts that intentionally self-host sub2api.
+# The current mainline architecture does not require a local sub2api service.
 [Unit]
 Description=GenAPI control plane - sub2api
 After=network-online.target postgresql.service redis-server.service

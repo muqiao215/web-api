@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import hashlib
 import re
+import subprocess
 from pathlib import Path
 
 from prompt_factory.filters import build_prompt_record, unique_list
@@ -13,6 +15,7 @@ CASE_HEADING_RE = re.compile(
     re.MULTILINE,
 )
 PROMPT_BLOCK_RE = re.compile(r"\*\*Prompt:\*\*\s*```(?:[\w-]+)?\n(?P<prompt>.*?)\n```", re.DOTALL)
+LICENSE_FILES = ("LICENSE", "LICENSE.md", "LICENCE", "LICENCE.md")
 
 
 def _slugify(value: str) -> str:
@@ -45,9 +48,34 @@ def _platform_tags_for_section(section_slug: str) -> list[str]:
     return ["general"]
 
 
+def _read_license(root: Path) -> str:
+    for name in LICENSE_FILES:
+        path = root / name
+        if not path.exists():
+            continue
+        for line in path.read_text(encoding="utf-8", errors="ignore").splitlines():
+            clean = line.strip()
+            if clean:
+                return clean
+    return ""
+
+
+def _git_revision(root: Path) -> str:
+    proc = subprocess.run(["git", "rev-parse", "HEAD"], cwd=root, text=True, capture_output=True, check=False)
+    if proc.returncode == 0 and proc.stdout.strip():
+        return proc.stdout.strip()
+    return ""
+
+
+def _file_revision(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
 def load_awesome_gpt_image_2_prompts(root: Path) -> list[PromptRecord]:
     readme_path = root / "README.md"
     markdown = readme_path.read_text(encoding="utf-8")
+    upstream_revision = _git_revision(root) or _file_revision(readme_path)
+    upstream_license = _read_license(root)
     records: list[PromptRecord] = []
 
     for section_title, section_start, section_end in _section_spans(markdown):
@@ -95,6 +123,10 @@ def load_awesome_gpt_image_2_prompts(root: Path) -> list[PromptRecord]:
                         "author": case_match.group("author").strip(),
                         "author_url": case_match.group("author_url").strip(),
                     },
+                    upstream_revision=upstream_revision,
+                    upstream_author=case_match.group("author").strip(),
+                    upstream_license=upstream_license,
+                    upstream_url=case_match.group("case_url").strip(),
                 )
             )
 

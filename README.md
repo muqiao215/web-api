@@ -6,7 +6,7 @@ It is aimed at builders who already have a working browser or provider runtime a
 
 This repository is best described as a **unified control-layer monorepo**:
 
-- `sub2api` is the management-plane boundary
+- a remote API management plane can sit northbound; this repo does not assume a local `sub2api` service
 - browser sessions and local workers are the actual capability backends
 - some upstream runtimes are partly absorbed into the tree, but not all are owned in the same way
 
@@ -124,7 +124,7 @@ This matters because browser-backed providers are powerful but more memory-expen
 - Some integrations in this repo are repo-native runtimes, while others are runtime-status bridges or external worker boundaries.
 - Gemini Web chat is already admitted through the unified northbound `/v1/chat/completions` surface; Gemini image admission exists but remains experimental / degraded-first.
 - Gemini Web's canonical public/provider id is `gemini-web`; `gemini-canvas` remains only a legacy compatibility alias.
-- `sub2api` is the intended management plane, but not every provider in this repo should be registered into it until direct content smoke checks pass.
+- a remote API management plane may exist northbound, but this repo no longer assumes a local `sub2api-local.service`
 - The first distributed execution slice is intentionally narrow: center northbound `/v1/jobs`, static worker registry, private worker execution, and local fallback.
 
 ## Where To Go Next

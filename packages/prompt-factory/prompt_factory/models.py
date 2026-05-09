@@ -32,6 +32,11 @@ class PromptRecord:
     selection_score: int
     quality: dict[str, Any]
     metadata: dict[str, Any]
+    upstream_revision: str = ""
+    upstream_author: str = ""
+    upstream_license: str = ""
+    upstream_created_at: str = ""
+    upstream_url: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

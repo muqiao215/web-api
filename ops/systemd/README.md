@@ -15,13 +15,17 @@ Do not rename current Gemini units just because the canonical provider surface m
 
 Recommended naming:
 
-- `genapi-control-sub2api.service`
 - `genapi-provider-gpt-web.service`
 - `genapi-shim-gpt-responses.service`
 - `genapi-shim-chat-responses.service`
 - `genapi-shim-ds-responses.service`
 - `genapi-provider-canvas.service`
 - `genapi-provider-ds-free.service`
+
+Optional historical example:
+
+- `genapi-control-sub2api.service`
+  Use only if you intentionally self-host a local `sub2api` instance. It is not a required mainline service.
 
 Operational note:
 

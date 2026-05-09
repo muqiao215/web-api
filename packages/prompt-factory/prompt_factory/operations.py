@@ -448,16 +448,56 @@ def write_diff_tracking(state_dir: Path, diff_summary: dict[str, Any]) -> None:
     append_jsonl(state_dir / "diff_history.jsonl", diff_summary)
 
 
+def validate_promotion_manifest(profile: str, manifest: dict[str, Any], *, force: bool = False) -> dict[str, Any]:
+    errors: list[str] = []
+    manifest_errors = manifest.get("errors") or []
+    input_sources = manifest.get("input_sources") or []
+    source_snapshots = manifest.get("source_snapshots") or {}
+
+    if manifest_errors:
+        errors.append("manifest has errors")
+    if int(manifest.get("prompt_count") or 0) <= 0:
+        errors.append("prompt_count must be > 0")
+    if not source_snapshots:
+        errors.append("source snapshots are missing")
+    if profile == "local_repos" and "runtime_bridge" in input_sources:
+        errors.append("local_repos manifest must not include runtime_bridge")
+    if profile == "runtime_bridge" and not force:
+        errors.append("runtime_bridge promotion requires force")
+
+    for source_id, snapshot in source_snapshots.items():
+        if snapshot.get("status") != "ok":
+            errors.append(f"{source_id}: source snapshot is not ok")
+        if snapshot.get("sync_mode") == "git_repo":
+            if snapshot.get("dirty"):
+                errors.append(f"{source_id}: source repo is dirty")
+            if int(snapshot.get("behind") or 0) > 0:
+                errors.append(f"{source_id}: source repo is behind")
+
+    return {
+        "ok": not errors,
+        "errors": errors,
+        "manifest": manifest,
+        "profile": profile,
+        "force": force,
+    }
+
+
 def promote_manifest(
     *,
     profile: str,
     manifest_path: Path,
     promoted_root: Path,
     state_dir: Path,
+    force_runtime_bridge: bool = False,
 ) -> dict[str, Any]:
     manifest = read_json(manifest_path, {})
     if not manifest:
         raise FileNotFoundError(f"manifest not found: {manifest_path}")
+
+    gate = validate_promotion_manifest(profile, manifest, force=force_runtime_bridge)
+    if not gate["ok"]:
+        raise ValueError("promotion quality gate failed: " + "; ".join(gate["errors"]))
 
     profile_root = promoted_root / profile
     promoted_paths: dict[str, str] = {}

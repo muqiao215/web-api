@@ -2,7 +2,7 @@
 
 `web-api` is best understood as a **unified control-layer monorepo**:
 
-- `sub2api` is the management-plane boundary.
+- a remote API management plane can sit northbound; a local `sub2api` deploy is optional.
 - browser sessions and local workers are the actual capability backends.
 - some upstream runtimes are partly absorbed into the repo tree, but they are not all owned in the same way.
 
@@ -216,9 +216,9 @@ Two external references matter conceptually:
 
 ### `sub2api`
 
-`sub2api` is the northbound management-plane boundary for unified registration and routing.
+`sub2api` remains a useful reference for the northbound management-plane boundary for unified registration and routing.
 
-It is not the whole control plane by itself.
+It is not the whole control plane by itself, and this repo should not assume a local `sub2api-local.service` by default.
 
 ### `xtekky/gpt4free`
 

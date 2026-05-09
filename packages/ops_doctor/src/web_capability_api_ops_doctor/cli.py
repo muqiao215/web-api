@@ -18,7 +18,6 @@ GEMINI_WEB_RUNTIME_COMMAND_CHECK = "gemini-web-browser-worker"
 
 
 HTTP_CHECKS = [
-    ("sub2api", "http://127.0.0.1:18080/health"),
     ("gpt-web-api", "http://127.0.0.1:4242/health"),
     ("gpt-web-responses", "http://127.0.0.1:4252/health"),
     ("ds-free-responses", "http://127.0.0.1:5327/health"),
@@ -46,7 +45,6 @@ TCP_CHECKS = [
 ]
 
 SYSTEMD_UNITS = [
-    "sub2api-local.service",
     "gpt-web-api.service",
     "gpt-web-responses-shim.service",
     "ds-free-responses-shim.service",

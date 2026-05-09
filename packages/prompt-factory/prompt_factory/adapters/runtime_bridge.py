@@ -20,6 +20,7 @@ def load_runtime_bridge_prompts(path: Path) -> list[PromptRecord]:
         prompt = normalize_text(item.get("prompt"))
         if not prompt:
             continue
+        legacy_meta = item.get("meta") if isinstance(item.get("meta"), dict) else {}
         record = build_prompt_record(
             source=normalize_text(item.get("source")) or "runtime-bridge",
             source_id=normalize_text(item.get("source_id")) or normalize_text(item.get("id")) or str(index),
@@ -33,10 +34,16 @@ def load_runtime_bridge_prompts(path: Path) -> list[PromptRecord]:
             category_tags=[str(value) for value in item.get("category_tags") or []],
             metadata={
                 "adapter": "runtime_bridge",
+                "governance_role": "migration_control_only",
                 "bridge_source_path": str(path),
                 "legacy_id": normalize_text(item.get("id")),
-                "legacy_meta": item.get("meta") if isinstance(item.get("meta"), dict) else {},
+                "legacy_meta": legacy_meta,
             },
+            upstream_revision=normalize_text(item.get("upstream_revision")) or normalize_text(legacy_meta.get("upstream_revision")),
+            upstream_author=normalize_text(item.get("upstream_author")) or normalize_text(legacy_meta.get("upstream_author")),
+            upstream_license=normalize_text(item.get("upstream_license")) or normalize_text(legacy_meta.get("upstream_license")),
+            upstream_created_at=normalize_text(item.get("upstream_created_at")) or normalize_text(legacy_meta.get("upstream_created_at")),
+            upstream_url=normalize_text(item.get("upstream_url")) or normalize_text(legacy_meta.get("upstream_url")),
         )
         records.append(record)
     return records

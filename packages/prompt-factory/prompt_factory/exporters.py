@@ -63,10 +63,20 @@ def export_gpt_prompt_pool(pool: dict[str, Any], path: Path) -> None:
                 "model_tags": item["model_tags"],
                 "category_tags": item["category_tags"],
                 "selection_score": item["selection_score"],
+                "upstream_revision": item.get("upstream_revision", ""),
+                "upstream_author": item.get("upstream_author", ""),
+                "upstream_license": item.get("upstream_license", ""),
+                "upstream_created_at": item.get("upstream_created_at", ""),
+                "upstream_url": item.get("upstream_url", ""),
                 "meta": {
                     **(item.get("metadata") or {}),
                     **(item.get("quality") or {}),
                     "canonical_id": item["canonical_id"],
+                    "upstream_revision": item.get("upstream_revision", ""),
+                    "upstream_author": item.get("upstream_author", ""),
+                    "upstream_license": item.get("upstream_license", ""),
+                    "upstream_created_at": item.get("upstream_created_at", ""),
+                    "upstream_url": item.get("upstream_url", ""),
                 },
             }
         )
@@ -99,6 +109,11 @@ def export_banana_prompts(pool: dict[str, Any], path: Path, *, max_prompts: int 
                 "number": item["source_id"] or item["number"],
                 "title": item["title"],
                 "prompt": item["prompt"],
+                "upstream_revision": item.get("upstream_revision", ""),
+                "upstream_author": item.get("upstream_author", ""),
+                "upstream_license": item.get("upstream_license", ""),
+                "upstream_created_at": item.get("upstream_created_at", ""),
+                "upstream_url": item.get("upstream_url", ""),
             }
         )
         if len(prompts) >= max_prompts:

@@ -160,6 +160,7 @@ def promote_command(args: argparse.Namespace) -> int:
         manifest_path=manifest_path,
         promoted_root=Path(args.promoted_root),
         state_dir=Path(args.state_dir),
+        force_runtime_bridge=args.force_runtime_bridge_promotion,
     )
     print(json.dumps(promoted, ensure_ascii=False, indent=2))
     return 0
@@ -192,7 +193,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     build = subparsers.add_parser("build", help="Build one or more prompt profiles")
     add_common_args(build)
-    build.add_argument("--profile", choices=["local_repos", "runtime_bridge", "all"], default="all")
+    build.add_argument("--profile", choices=["local_repos", "runtime_bridge", "all"], default="local_repos")
     build.add_argument("--output-root", default=str(PROJECT_ROOT / "builds"))
     build.add_argument("--compose-keyword-limit", type=int, default=55)
     build.add_argument("--banana-min-chars", type=int, default=0)
@@ -227,6 +228,11 @@ def build_parser() -> argparse.ArgumentParser:
     promote.add_argument("--output-root", default=str(PROJECT_ROOT / "builds"))
     promote.add_argument("--promoted-root", default=str(DEFAULT_PROMOTED_ROOT))
     promote.add_argument("--manifest", default="")
+    promote.add_argument(
+        "--force-runtime-bridge-promotion",
+        action="store_true",
+        help="Allow runtime_bridge promotion for migration/debug only.",
+    )
     promote.set_defaults(func=promote_command)
 
     meta_prompt = subparsers.add_parser("meta-prompt", help="Generate a meta_prompt skeleton for one manual GPT prompt")

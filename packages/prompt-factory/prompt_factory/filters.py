@@ -180,6 +180,11 @@ def build_prompt_record(
     model_tags: list[str] | None = None,
     category_tags: list[str] | None = None,
     metadata: dict[str, Any] | None = None,
+    upstream_revision: str = "",
+    upstream_author: str = "",
+    upstream_license: str = "",
+    upstream_created_at: str = "",
+    upstream_url: str = "",
 ) -> PromptRecord:
     clean_prompt = normalize_text(prompt)
     human_related = prompt_text_is_human_related(clean_prompt)
@@ -214,6 +219,11 @@ def build_prompt_record(
             "score": selection_score,
         },
         metadata=clean_metadata,
+        upstream_revision=normalize_text(upstream_revision),
+        upstream_author=normalize_text(upstream_author),
+        upstream_license=normalize_text(upstream_license),
+        upstream_created_at=normalize_text(upstream_created_at),
+        upstream_url=normalize_text(upstream_url),
     )
 
 

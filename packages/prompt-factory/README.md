@@ -2,15 +2,17 @@
 
 `prompt_factory` 是一个独立的提示词源/变换/构建项目，目标不是替代现有 bot，而是把提示词资产、元提示词组合逻辑、导出物和桥接路径从 bot 内部抽出来，形成一个可重复构建的统一工程。
 
-当前 MVP 已经支持两条实际可用的构建线：
+当前 MVP 的治理分层：
 
 - `local_repos`
-  从本地源仓库重建统一提示词池：
+  主构建线，从本地源仓库重建统一提示词池：
   `ai-image-prompts-skill.J5v2Vt`、`BestPrompts.tmp`、`stable-diffusion-prompt-templates.ASMlaX`、`prompt-pack.tmp`、`awesome-gpt-image-2-prompts`、`sources/manual_gpt_prompts.json`
+- `manual_gpt`
+  人工精选/去噪层，属于 `local_repos` 的 curated input，不是独立运行时入口
 - `runtime_bridge`
-  直接桥接当前已验证在跑的
-  `telegram_gpt_image_bot/state/prompt_pool.json`
-  以保留现有 8900 条运行时资产与旧来源分布
+  仅保留作迁移/对照/调试控制层，不再作为默认构建或稳定消费入口
+- `promoted`
+  唯一稳定消费入口；消费者应读取 `builds/promoted/local_repos/...`
 
 ## 目录
 
@@ -36,6 +38,8 @@
 - `platform_tags` / `model_tags` / `category_tags`
 - `quality_tier`
 - `selection_score`
+- `upstream_revision` / `upstream_author` / `upstream_license`
+- `upstream_created_at` / `upstream_url`
 - `quality`
   含 `ornate_score`、`human_related`、`requires_reference`
 - `metadata`
@@ -47,25 +51,24 @@
 
 ```bash
 uv run --project packages/prompt-factory \
-  prompt-factory build --profile all
+  prompt-factory build
 ```
 
 如果工作区根不是当前仓库的上一级目录，可以显式指定：
 
 ```bash
 uv run --project packages/prompt-factory \
-  prompt-factory build --profile all --workspace-root /your/workspace/root
+  prompt-factory build --workspace-root /your/workspace/root
 ```
 
-默认会生成到当前包目录下的 `builds/`：
+默认只构建 `local_repos`，并生成到当前包目录下的 `builds/`：
 
 - `builds/local_repos/unified/prompt_pool.json`
 - `builds/local_repos/providers/gpt/prompt_pool.json`
 - `builds/local_repos/providers/banana/banana_prompts.json`
-- `builds/runtime_bridge/unified/prompt_pool.json`
-- `builds/runtime_bridge/providers/gpt/prompt_pool.json`
-- `builds/runtime_bridge/providers/banana/banana_prompts.json`
 - `builds/*/indices/used_prompt_ids.seed.json`
+
+如需迁移/调试旧运行时池，可显式执行 `prompt-factory build --profile runtime_bridge`；它不会随默认 build 运行。
 
 现在除了 `build`，还支持 3 个持久化命令：
 
@@ -94,6 +97,8 @@ uv run --project packages/prompt-factory \
 - `promote`
   - 把当前 profile 的 build 复制到 `builds/promoted/<profile>/`
   - 作为后续消费者应优先读取的稳定版本
+  - 默认只允许合格的 `local_repos` promote；`runtime_bridge` 必须显式加 `--force-runtime-bridge-promotion`，仅用于迁移/调试
+  - 质量门禁会拒绝：manifest errors、空 prompt 池、缺失 source snapshots、dirty/behind git source、或 `local_repos` 仍混入 `runtime_bridge`
 
 补充：
 
@@ -134,6 +139,7 @@ cron 友好的状态文件会写到 `state/`：
 - 会去掉账号名、序号、JSON 壳、图片尺寸尾巴这类噪音
 - 人物/人像 prompt 也会正常入库；是否在生成链路里筛掉，交给后续消费侧处理
 - 可选 `meta_prompt` 字段可用来保存“元提示词抽象 / 配方层”，例如主题、镜头、光线、排版结构这类可复用骨架；当前会透传到 unified pool 的 `metadata` 和 GPT 导出的 `meta`，便于后续 bot 或上层工作流消费
+- 可选 `upstream_revision` / `upstream_author` / `upstream_license` / `upstream_created_at` / `upstream_url` 会透传到统一记录和 provider export；未填时至少用源文件 sha256 作为 revision
 
 可以直接对单条 manual GPT prompt 生成骨架并写回源文件：
 
@@ -151,9 +157,9 @@ uv run --project packages/prompt-factory \
 - 保留 provider-specific export，避免后续 bot/API/showcase 再各自重新清洗
 - 整理入库阶段不丢 prompt，只记录 `human_related / requires_reference` 等质量标记
 - 生成侧是否过滤人物/参考图依赖 prompt，交给后续导出/消费链路决定
-- `runtime_bridge` 解决“今天就能接上现有运行时”；`local_repos` 解决“以后能从源仓库重建”
+- `local_repos` 是主线；`runtime_bridge` 只用于迁移/对照/调试，不允许无意 promote 成稳定消费入口
 - `sync` 只允许 fast-forward，不替你解决源仓库的本地脏改动
-- `promote` 把“最新 build”和“稳定可消费版本”分开，避免上游脏更新直接进生产
+- `promote` 把“最新 build”和“稳定可消费版本”分开，并用质量门禁避免上游脏更新或桥接源混入生产
 
 ## 后续桥接
 
